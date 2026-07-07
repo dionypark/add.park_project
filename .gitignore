@@ -1,0 +1,7 @@
+.env
+.venv/
+.claude/
+vectordb/
+__pycache__/
+*.pyc
+ragas_results.csv
