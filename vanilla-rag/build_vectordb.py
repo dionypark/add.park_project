@@ -1,12 +1,11 @@
-"""AWS 문서를 청킹하여 Gemini로 임베딩하고 ChromaDB에 영구 저장한다.
+"""AWS 문서를 청킹하여 로컬 임베딩 모델로 임베딩하고 ChromaDB에 영구 저장한다.
 
-이미 컬렉션에 데이터가 있으면 재임베딩을 건너뛴다 (Gemini 토큰 절약).
+이미 컬렉션에 데이터가 있으면 재임베딩을 건너뛴다.
 """
 import glob
 import os
 
 import chromadb
-from google.genai import types
 
 import config
 from chunking import chunk_markdown
@@ -26,12 +25,7 @@ def load_documents(data_dir: str) -> list[tuple[str, str]]:
 
 
 def embed_text(text: str) -> list[float]:
-    result = config.client.models.embed_content(
-        model=config.EMBEDDING_MODEL,
-        contents=text,
-        config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
-    )
-    return result.embeddings[0].values
+    return config.get_embedder().encode(text, normalize_embeddings=True).tolist()
 
 
 def build_vectordb() -> None:

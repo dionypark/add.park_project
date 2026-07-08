@@ -1,5 +1,6 @@
 import chromadb.errors
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import config
@@ -40,3 +41,6 @@ def ask(request: AskRequest):
             status_code=503,
             detail="벡터DB 컬렉션이 없습니다. build_vectordb.py를 먼저 실행하세요.",
         )
+
+
+app.mount("/", StaticFiles(directory="static", html=True), name="static")

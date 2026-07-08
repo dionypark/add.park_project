@@ -11,6 +11,10 @@ from ragas.metrics import AnswerRelevancy, ContextPrecision, ContextRecall, Fait
 import config
 from rag_query import retrieve, answer_question
 
+# RAGAS 채점(judge)용 모델 — 실제 답변 생성(Claude)과는 독립적으로, Gemini를 평가자로 사용.
+JUDGE_LLM_MODEL = "gemini-2.5-flash"
+JUDGE_EMBEDDING_MODEL = "models/gemini-embedding-001"
+
 # 질문 - 정답(reference) 쌍. 각 질문이 어느 문서를 근거로 답해야 하는지 알고 있는 상태로 구성.
 EVAL_SET = [
     {
@@ -70,10 +74,10 @@ def run_evaluation():
     dataset = build_dataset()
 
     judge_llm = LangchainLLMWrapper(
-        ChatGoogleGenerativeAI(model=config.GENERATION_MODEL, google_api_key=config.GOOGLE_API_KEY)
+        ChatGoogleGenerativeAI(model=JUDGE_LLM_MODEL, google_api_key=config.GOOGLE_API_KEY)
     )
     judge_embeddings = LangchainEmbeddingsWrapper(
-        GoogleGenerativeAIEmbeddings(model=f"models/{config.EMBEDDING_MODEL}", google_api_key=config.GOOGLE_API_KEY)
+        GoogleGenerativeAIEmbeddings(model=JUDGE_EMBEDDING_MODEL, google_api_key=config.GOOGLE_API_KEY)
     )
 
     result = evaluate(

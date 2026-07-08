@@ -1,8 +1,7 @@
-"""ChromaDB에 저장된 AWS 문서를 검색해 Gemini로 답변을 생성한다."""
+"""ChromaDB에 저장된 AWS 문서를 검색해 Claude로 답변을 생성한다."""
 import sys
 
 import chromadb
-from google.genai import types
 
 import config
 
@@ -25,12 +24,7 @@ def _get_collection():
 
 
 def embed_query(text: str) -> list[float]:
-    result = config.client.models.embed_content(
-        model=config.EMBEDDING_MODEL,
-        contents=text,
-        config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY"),
-    )
-    return result.embeddings[0].values
+    return config.get_embedder().encode(text, normalize_embeddings=True).tolist()
 
 
 def retrieve(question: str, top_k: int = config.TOP_K) -> list[dict]:
@@ -56,13 +50,15 @@ def build_prompt(question: str, hits: list[dict]) -> str:
 def answer_question(question: str, top_k: int = config.TOP_K) -> dict:
     hits = retrieve(question, top_k)
     prompt = build_prompt(question, hits)
-    response = config.client.models.generate_content(
+    response = config.anthropic_client.messages.create(
         model=config.GENERATION_MODEL,
-        contents=prompt,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
     )
+    answer_text = next(block.text for block in response.content if block.type == "text")
     return {
         "question": question,
-        "answer": response.text,
+        "answer": answer_text,
         "sources": [{"source": h["source"], "header": h["header"]} for h in hits],
     }
 
