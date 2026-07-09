@@ -16,7 +16,7 @@ Claude API를 LLM으로, 허깅페이스 오픈소스 모델을 임베딩으로 
 ```
 data/aws_docs/*.md   AWS 문서 샘플 (EC2, Lambda, Fargate, Well-Architected, 선택 가이드)
 chunking.py          마크다운 헤더 기반 청킹
-build_vectordb.py    문서 → 임베딩(로컬 허깅페이스 모델) → ChromaDB 저장 (최초 1회, 이후 자동 스킵)
+build_vectordb.py    문서(Synthetic Data) → 임베딩(로컬 허깅페이스 모델) → ChromaDB 저장 (최초 1회, 이후 자동 스킵)
 rag_query.py         검색(로컬 임베딩) → Claude 답변 생성
 app.py               FastAPI REST API (/ask, /health)
 evaluate_ragas.py     RAGAS 평가 — Gemini를 별도 채점자(judge)로 사용 (자기 답을 자기가 채점하지 않도록)
