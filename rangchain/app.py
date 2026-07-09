@@ -1,9 +1,8 @@
 from contextlib import asynccontextmanager
 
-import chromadb.errors
 from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from fastapi.staticfiles import StaticFiles
 
 import config
 from rag_query import answer_question, warm_up
@@ -16,7 +15,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="AWS 서비스 선택/비용 최적화 어드바이저", lifespan=lifespan)
+app = FastAPI(title="AWS 서비스 선택/비용 최적화 어드바이저 (LangChain)", lifespan=lifespan)
 
 
 class AskRequest(BaseModel):
@@ -46,11 +45,8 @@ def ask(request: AskRequest):
         raise HTTPException(status_code=400, detail="question은 비어 있을 수 없습니다.")
     try:
         return answer_question(request.question, top_k=request.top_k)
-    except chromadb.errors.NotFoundError:
-        raise HTTPException(
-            status_code=503,
-            detail="벡터DB 컬렉션이 없습니다. build_vectordb.py를 먼저 실행하세요.",
-        )
-
-
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    
+    
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

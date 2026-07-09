@@ -5,7 +5,7 @@
 | 주차 | 폴더 | 내용 | 상태 |
 |---|---|---|---|
 | 6주차 | [`vanilla-rag/`](./vanilla-rag) | huggingface imbedding model + Anthropic API 기반 순수 RAG (AWS 서비스 선택/비용 최적화 어드바이저) | 완료 |
-| 7주차 | [`rangchain/`](./rangchain) | LangChain 마이그레이션 | 예정 |
+| 7주차 | [`rangchain/`](./rangchain) | LangChain 마이그레이션 | 완료 |
 | 8주차 | [`ranggraph/`](./ranggraph) | LangGraph 마이그레이션 (조건부 분기/상태) | 예정 |
 | 최종 포폴 | [`cascade-rag-agent/`](./cascade-rag-agent) | 난이도별 모델 라우팅 Cascade RAG Agent | 예정 |
 
