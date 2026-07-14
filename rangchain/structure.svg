@@ -1,0 +1,70 @@
+<svg width="100%" viewBox="0 0 680 500" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>rangchain (7주차) 구조도</title>
+<desc>인덱싱 파이프라인(문서→청킹→LangChain Document 변환→HuggingFace 임베딩)과 쿼리 파이프라인(질문→리트리버 검색→LCEL 체인 생성)이 langchain_chroma 벡터스토어를 공유하고, FastAPI/Streamlit UI/LangSmith 평가가 그 위에 얹혀지는 구조</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect width="680" height="500" fill="#ffffff"/>
+
+<rect x="30" y="50" width="610" height="100" rx="8" fill="none" stroke="#B4B2A9" stroke-width="0.5" stroke-dasharray="4 3"/>
+<text x="40" y="66" font-size="12" fill="#5F5E5A">인덱싱 파이프라인 · 최초 1회</text>
+
+<rect x="40" y="70" width="190" height="60" rx="4" fill="#E6F1FB" stroke="#378ADD"/>
+<text x="135" y="94" text-anchor="middle" font-size="14" font-weight="500" fill="#042C53">data/aws_docs/</text>
+<text x="135" y="112" text-anchor="middle" font-size="12" fill="#0C447C">마크다운 문서 5개</text>
+
+<rect x="245" y="70" width="190" height="60" rx="4" fill="#E6F1FB" stroke="#378ADD"/>
+<text x="340" y="94" text-anchor="middle" font-size="14" font-weight="500" fill="#042C53">chunking.py</text>
+<text x="340" y="112" text-anchor="middle" font-size="12" fill="#0C447C">헤더 기반 청킹</text>
+
+<rect x="450" y="70" width="190" height="60" rx="4" fill="#E6F1FB" stroke="#378ADD"/>
+<text x="545" y="94" text-anchor="middle" font-size="14" font-weight="500" fill="#042C53">build_vectordb.py</text>
+<text x="545" y="112" text-anchor="middle" font-size="12" fill="#0C447C">Document+HF 임베딩</text>
+
+<line x1="230" y1="100" x2="245" y2="100" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="435" y1="100" x2="450" y2="100" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M545,130 L545,148 L240,148 L240,180" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<rect x="130" y="180" width="220" height="60" rx="4" fill="#FDF3E3" stroke="#D8A73D"/>
+<text x="240" y="204" text-anchor="middle" font-size="14" font-weight="500" fill="#5C4419">vectordb/</text>
+<text x="240" y="222" text-anchor="middle" font-size="12" fill="#8A6A2A">langchain_chroma</text>
+
+<line x1="240" y1="240" x2="240" y2="290" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<rect x="30" y="260" width="610" height="120" rx="8" fill="none" stroke="#B4B2A9" stroke-width="0.5" stroke-dasharray="4 3"/>
+<text x="40" y="276" font-size="12" fill="#5F5E5A">쿼리 파이프라인 · LCEL 체인 · 매 요청</text>
+
+<rect x="40" y="290" width="110" height="60" rx="4" fill="#E1F5EE" stroke="#1D9E75"/>
+<text x="95" y="314" text-anchor="middle" font-size="14" font-weight="500" fill="#04342C">질문</text>
+<text x="95" y="332" text-anchor="middle" font-size="12" fill="#085041">사용자 입력</text>
+
+<rect x="170" y="290" width="140" height="60" rx="4" fill="#E1F5EE" stroke="#1D9E75"/>
+<text x="240" y="314" text-anchor="middle" font-size="14" font-weight="500" fill="#04342C">retriever</text>
+<text x="240" y="332" text-anchor="middle" font-size="12" fill="#085041">as_retriever()</text>
+
+<rect x="330" y="290" width="150" height="60" rx="4" fill="#E1F5EE" stroke="#1D9E75"/>
+<text x="405" y="314" text-anchor="middle" font-size="14" font-weight="500" fill="#04342C">generate_step</text>
+<text x="405" y="332" text-anchor="middle" font-size="12" fill="#085041">prompt·Claude·parser</text>
+
+<rect x="500" y="290" width="120" height="60" rx="4" fill="#E1F5EE" stroke="#1D9E75"/>
+<text x="560" y="314" text-anchor="middle" font-size="14" font-weight="500" fill="#04342C">답변</text>
+<text x="560" y="332" text-anchor="middle" font-size="12" fill="#085041">출처 포함</text>
+
+<line x1="150" y1="320" x2="170" y2="320" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="310" y1="320" x2="330" y2="320" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="480" y1="320" x2="500" y2="320" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<line x1="132" y1="380" x2="132" y2="410" stroke="#888780" stroke-width="0.5" stroke-dasharray="3 2" marker-end="url(#arrow)"/>
+<line x1="337" y1="380" x2="337" y2="410" stroke="#888780" stroke-width="0.5" stroke-dasharray="3 2" marker-end="url(#arrow)"/>
+<line x1="542" y1="380" x2="542" y2="410" stroke="#888780" stroke-width="0.5" stroke-dasharray="3 2" marker-end="url(#arrow)"/>
+
+<rect x="40" y="410" width="185" height="60" rx="4" fill="#F1EFE8" stroke="#B4B2A9"/>
+<text x="132" y="434" text-anchor="middle" font-size="14" font-weight="500" fill="#2C2C2A">app.py</text>
+<text x="132" y="452" text-anchor="middle" font-size="12" fill="#5F5E5A">FastAPI · 웜업+락</text>
+
+<rect x="245" y="410" width="185" height="60" rx="4" fill="#F1EFE8" stroke="#B4B2A9"/>
+<text x="337" y="434" text-anchor="middle" font-size="14" font-weight="500" fill="#2C2C2A">streamlit_app.py</text>
+<text x="337" y="452" text-anchor="middle" font-size="12" fill="#5F5E5A">채팅 UI</text>
+
+<rect x="450" y="410" width="185" height="60" rx="4" fill="#F1EFE8" stroke="#B4B2A9"/>
+<text x="542" y="434" text-anchor="middle" font-size="14" font-weight="500" fill="#2C2C2A">evaluate_langsmith.py</text>
+<text x="542" y="452" text-anchor="middle" font-size="12" fill="#5F5E5A">LangSmith 평가</text>
+</svg>

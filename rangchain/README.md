@@ -10,6 +10,10 @@
 | FastAPI로 REST API 배포 | ✅ `app.py` |
 | LangSmith로 Tracing + Dataset 기반 평가 | ✅ `evaluate_langsmith.py` (LangSmith API 키 필요) |
 
+## 구조도
+
+![rangchain 구조도](./structure.svg)
+
 ## vanilla-rag 대비 뭐가 바뀌었나 (살아있는 것 vs 죽는 것)
 
 | 개념 | vanilla-rag (함수 호출) | rangchain (LangChain) |

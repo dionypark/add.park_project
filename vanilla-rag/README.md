@@ -11,6 +11,10 @@ Claude API를 LLM으로, 허깅페이스 오픈소스 모델을 임베딩으로 
 | RAGAS 등으로 평가 | ✅ `evaluate_ragas.py` |
 | Graph RAG (선택) | ❌ 미구현 |
 
+## 구조도
+
+![vanilla-rag 구조도](./structure.svg)
+
 ## 구조
 
 ```
