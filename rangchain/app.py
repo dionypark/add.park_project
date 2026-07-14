@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from fastapi.staticfiles import StaticFiles
 
 import config
 from rag_query import answer_question, warm_up
@@ -47,6 +46,3 @@ def ask(request: AskRequest):
         return answer_question(request.question, top_k=request.top_k)
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
-    
-    
-app.mount("/", StaticFiles(directory="static", html=True), name="static")

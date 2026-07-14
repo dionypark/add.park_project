@@ -19,6 +19,7 @@ chunking.py          마크다운 헤더 기반 청킹
 build_vectordb.py    문서(Synthetic Data) → 임베딩(로컬 허깅페이스 모델) → ChromaDB 저장 (최초 1회, 이후 자동 스킵)
 rag_query.py         검색(로컬 임베딩) → Claude 답변 생성
 app.py               FastAPI REST API (/ask, /health)
+streamlit_app.py     Streamlit 채팅 UI — FastAPI(/ask)를 호출함 (별도 프로세스)
 evaluate_ragas.py     RAGAS 평가 — Gemini를 별도 채점자(judge)로 사용 (자기 답을 자기가 채점하지 않도록)
 ```
 
@@ -32,7 +33,8 @@ source .venv/bin/activate          # 가상환경 켜기
 cp .env.example .env               # .env에 GOOGLE_API_KEY, ANTHROPIC_API_KEY 입력 필요
 python build_vectordb.py           # 최초 1회: 문서 임베딩+저장
 python rag_query.py "질문"          # CLI로 질문/답변 테스트
-uvicorn app:app --reload           # REST API 서버
+uvicorn app:app --reload           # REST API 서버 (터미널 1)
+streamlit run streamlit_app.py     # 채팅 UI, 위 서버가 떠있어야 함 (터미널 2)
 python evaluate_ragas.py           # RAGAS 평가
 ```
 
