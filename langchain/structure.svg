@@ -1,5 +1,5 @@
 <svg width="100%" viewBox="0 0 680 500" role="img" xmlns="http://www.w3.org/2000/svg">
-<title>rangchain (7주차) 구조도</title>
+<title>langchain (7주차) 구조도</title>
 <desc>인덱싱 파이프라인(문서→청킹→LangChain Document 변환→HuggingFace 임베딩)과 쿼리 파이프라인(질문→리트리버 검색→LCEL 체인 생성)이 langchain_chroma 벡터스토어를 공유하고, FastAPI/Streamlit UI/LangSmith 평가가 그 위에 얹혀지는 구조</desc>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
 <rect width="680" height="500" fill="#ffffff"/>

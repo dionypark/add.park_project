@@ -1,11 +1,11 @@
 <svg width="100%" viewBox="0 0 680 570" role="img" xmlns="http://www.w3.org/2000/svg">
-<title>ranggraph (8주차) 구조도</title>
+<title>langgraph (8주차) 구조도</title>
 <desc>인덱싱 파이프라인은 이전 단계와 동일하고, 쿼리 단계가 고정 파이프라인 대신 agent 노드와 tools 노드가 서로를 오가는 ReAct 에이전트 루프로 바뀐 구조. LLM이 도구가 더 필요한지 스스로 판단해서 반복하거나 답변으로 종료한다.</desc>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
 <rect width="680" height="570" fill="#ffffff"/>
 
 <rect x="30" y="50" width="610" height="100" rx="8" fill="none" stroke="#B4B2A9" stroke-width="0.5" stroke-dasharray="4 3"/>
-<text x="40" y="66" font-size="12" fill="#5F5E5A">인덱싱 파이프라인 · rangchain과 동일 · 최초 1회</text>
+<text x="40" y="66" font-size="12" fill="#5F5E5A">인덱싱 파이프라인 · langchain과 동일 · 최초 1회</text>
 
 <rect x="40" y="70" width="190" height="60" rx="4" fill="#E6F1FB" stroke="#378ADD"/>
 <text x="135" y="94" text-anchor="middle" font-size="14" font-weight="500" fill="#042C53">data/aws_docs/</text>

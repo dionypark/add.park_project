@@ -1,4 +1,4 @@
-# 7주차 — rangchain (LangChain 마이그레이션)
+# 7주차 — langchain (LangChain 마이그레이션)
 
 `vanilla-rag`의 손수 짠 RAG 파이프라인을 LangChain LCEL 체인으로 마이그레이션.
 
@@ -12,11 +12,11 @@
 
 ## 구조도
 
-![rangchain 구조도](./structure.svg)
+![langchain 구조도](./structure.svg)
 
 ## vanilla-rag 대비 뭐가 바뀌었나 (살아있는 것 vs 죽는 것)
 
-| 개념 | vanilla-rag (함수 호출) | rangchain (LangChain) |
+| 개념 | vanilla-rag (함수 호출) | langchain (LangChain) |
 |---|---|---|
 | 검색 | `retrieve()` + 직접 ChromaDB 쿼리 | **죽음** → `vectorstore.as_retriever()` 객체가 대체 |
 | 프롬프트 조립 | `build_prompt()` f-string | **죽음** → `ChatPromptTemplate` 객체가 대체 |
@@ -43,7 +43,7 @@ evaluate_langsmith.py  LangSmith Dataset 생성 + Tracing + 평가
 ## 실행 방법
 
 ```bash
-cd rangchain
+cd langchain
 source .venv/bin/activate
 cp .env.example .env    # ANTHROPIC_API_KEY, LANGCHAIN_API_KEY 입력 필요
 python build_vectordb.py

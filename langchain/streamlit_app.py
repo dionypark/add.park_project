@@ -12,7 +12,7 @@ API_URL = os.environ.get("API_URL", "http://127.0.0.1:8000")
 
 st.set_page_config(page_title="AWS 서비스 선택/비용 최적화 어드바이저", page_icon="💬")
 st.title("AWS 서비스 선택 / 비용 최적화 어드바이저")
-st.caption("7주차 · rangchain (LangChain LCEL 체인)")
+st.caption("7주차 · langchain (LangChain LCEL 체인)")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []

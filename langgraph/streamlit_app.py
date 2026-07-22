@@ -15,7 +15,7 @@ BOT_AVATAR = "🦖"
 
 st.set_page_config(page_title="AWS 쥬라기 어드바이저", page_icon="🦕")
 st.title("🦕 AWS 서비스 선택 / 비용 최적화 어드바이저 🌿")
-st.caption("8주차 · ranggraph (LangGraph ReAct 에이전트, 멀티턴 대화 지원)")
+st.caption("8주차 · langgraph (LangGraph ReAct 에이전트, 멀티턴 대화 지원)")
 st.markdown("🦴 🌴 🥚 🦖 🌋 🦕 🌿 🦴 🌴 🥚 🦖 🌋 🦕 🌿")
 
 if "messages" not in st.session_state:

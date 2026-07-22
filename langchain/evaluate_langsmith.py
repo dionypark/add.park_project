@@ -13,7 +13,7 @@ from langsmith.evaluation import evaluate
 import config
 from rag_query import answer_question
 
-DATASET_NAME = "rangchain-aws-advisor-eval"
+DATASET_NAME = "langchain-aws-advisor-eval"
 
 # 질문 - 정답(reference) 쌍. vanilla-rag의 평가셋과 동일하게 맞춰 두 단계 결과를 비교할 수 있게 함.
 EVAL_QUESTIONS = [
@@ -125,7 +125,7 @@ def run_evaluation():
         target,
         data=DATASET_NAME,
         evaluators=[contains_expected_keyword, llm_judge],
-        experiment_prefix="rangchain-v1",
+        experiment_prefix="langchain-v1",
     )
     print(result)
 
