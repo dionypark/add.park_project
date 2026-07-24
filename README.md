@@ -20,6 +20,8 @@
 | 2026-07-09 | 7주차 `langchain` 마이그레이션 구현 + 코드 리뷰 반영 | 완료 |
 | 2026-07-14 | 8주차 `langgraph` ReAct 에이전트 구현 + Streamlit UI 교체 | 완료 |
 | 2026-07-22 | 폴더명 정리(`langchain`/`langgraph`) + 실제 AWS 문서로 데이터 교체 | 완료 |
+| 2026-07-26 (일) | Docker 컨테이너 패키징 + Docker Compose 실행, AWS EC2 배포(외부 접근 가능하도록 구성) | 예정 |
+| 2026-08-02 (일) 즈음 | GitHub Actions로 push 시 자동 빌드·배포되는 CI/CD 파이프라인 구축 | 예정 |
 | 미정 | 최종 포폴 `cascade-rag-agent` 설계 및 구현 (난이도별 모델 라우팅) | 예정 |
 
 목표일이 정해지면 마지막 줄에 채워 넣을 예정.
