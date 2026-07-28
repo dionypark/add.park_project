@@ -7,7 +7,7 @@
 | 6주차 | [`vanilla-rag/`](./vanilla-rag) | huggingface imbedding model + Anthropic API 기반 순수 RAG (AWS 서비스 선택/비용 최적화 어드바이저) | 완료 |
 | 7주차 | [`langchain/`](./langchain) | LangChain 마이그레이션 | 완료 |
 | 8주차 | [`langgraph/`](./langgraph) | LangGraph 마이그레이션 (ReAct 에이전트, 멀티턴) | 완료 |
-| 최종 포폴 | [`cascade-rag-agent/`](./cascade-rag-agent) | 난이도별 모델 라우팅 Cascade RAG Agent | 예정 |
+| 최종 포폴 | [`multi-agent-rag/`](./multi-agent-rag) | 계층형 멀티 에이전트(supervisor+retrieval+cost) + 실시간 AWS 요금 API | 진행 중 |
 
 각 폴더는 독립적으로 실행 가능하며, 자세한 내용은 폴더 안의 README를 참고.
 
@@ -21,7 +21,8 @@
 | 2026-07-14 | 8주차 `langgraph` ReAct 에이전트 구현 + Streamlit UI 교체 | 완료 |
 | 2026-07-22 | 폴더명 정리(`langchain`/`langgraph`) + 실제 AWS 문서로 데이터 교체 | 완료 |
 | 2026-07-26 (일) | Docker 컨테이너 패키징 + Docker Compose 실행, AWS EC2 배포(외부 접근 가능하도록 구성) | 예정 |
+| 2026-07-28 | 최종 포폴 `multi-agent-rag`(구 cascade-rag-agent) 멀티 에이전트(supervisor+retrieval+cost) 구현, AWS Price List API로 Lambda/EC2/Fargate 실시간 요금 조회 연동(EC2는 로컬 캐싱), 구조에 안 맞던 폴더명(cascade→multi-agent-rag) 정정 | 완료 |
 | 2026-08-02 (일) 즈음 | GitHub Actions로 push 시 자동 빌드·배포되는 CI/CD 파이프라인 구축 | 예정 |
-| 미정 | 최종 포폴 `cascade-rag-agent` 설계 및 구현 (난이도별 모델 라우팅) | 예정 |
+| 미정 | 최종 포폴 `multi-agent-rag` FastAPI 배포 마무리 | 예정 |
 
 목표일이 정해지면 마지막 줄에 채워 넣을 예정.

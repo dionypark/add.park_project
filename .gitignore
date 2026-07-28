@@ -5,3 +5,5 @@ vectordb/
 __pycache__/
 *.pyc
 ragas_results.csv
+.DS_Store
+ec2_price_cache.json
