@@ -21,8 +21,9 @@
 | 2026-07-14 | 8주차 `langgraph` ReAct 에이전트 구현 + Streamlit UI 교체 | 완료 |
 | 2026-07-22 | 폴더명 정리(`langchain`/`langgraph`) + 실제 AWS 문서로 데이터 교체 | 완료 |
 | 2026-07-26 (일) | Docker 컨테이너 패키징 + Docker Compose 실행, AWS EC2 배포(외부 접근 가능하도록 구성) | 예정 |
-| 2026-07-28 | 최종 포폴 `multi-agent-rag`(구 cascade-rag-agent) 멀티 에이전트(supervisor+retrieval+cost) 구현, AWS Price List API로 Lambda/EC2/Fargate 실시간 요금 조회 연동(EC2는 로컬 캐싱), 구조에 안 맞던 폴더명(cascade→multi-agent-rag) 정정 | 완료 |
-| 2026-08-02 (일) 즈음 | GitHub Actions로 push 시 자동 빌드·배포되는 CI/CD 파이프라인 구축 | 예정 |
-| 미정 | 최종 포폴 `multi-agent-rag` FastAPI 배포 마무리 | 예정 |
+| 2026-07-28 | 최종 멀티 에이전트(supervisor+retrieval+cost) 구현, AWS Price List API로 Lambda/EC2/Fargate 실시간 요금 조회 연동(EC2는 로컬 캐싱) | 완료 |
+| 2026-08-01 (토) | GitHub Actions로 push 시 자동 빌드·배포되는 CI/CD 파이프라인 구축 | 예정 |
+| 2026-08-02 | Thread-Id 기반 히스토리 저장 구현 | 예정 |
+| 2026-08-08 | 최종 포폴 `multi-agent-rag` FastAPI 배포 마무리 | 예정 |
 
 목표일이 정해지면 마지막 줄에 채워 넣을 예정.
