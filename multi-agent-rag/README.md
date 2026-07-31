@@ -1,11 +1,8 @@
 # 최종 포트폴리오 — Multi-Agent RAG
 
 `vanilla-rag` → `langchain` → `langgraph`를 거쳐 완성되는 최종 통합본. **계층형(Hierarchical) 멀티 에이전트** 구조로, `langgraph`(싱글 에이전트)의 다음 단계.
+> 실제 구조는 supervisor가 한 번 판단해서 필요한 에이전트로 병렬 분기(fan-out)하고 결과를 합류(fan-in)하는 **계층형 supervisor-worker 패턴**.`multi-agent-rag`.
 
-> 폴더명은 원래 `cascade-rag-agent`였다. "cascade"는 단계별 escalation(예: 싼 모델 먼저 시도, 안 되면 큰 모델로) 패턴을 뜻하는데,
-> 실제 구조는 supervisor가 한 번 판단해서 필요한 에이전트로 병렬 분기(fan-out)하고 결과를 합류(fan-in)하는 **계층형 supervisor-worker 패턴**이라 이름이 안 맞았음. `multi-agent-rag`로 변경.
-
-> 처음엔 "난이도별 경량/대형 모델 라우팅"으로 기획했지만, 실제로는 **역할(검색/계산) 기준으로 멀티 에이전트를 나누는 쪽**으로 설계를 변경함 — 모델은 `claude-sonnet-5` 하나로 고정하고, "누가 무슨 일을 하는지"를 여러 에이전트로 나눴다.
 
 ## 구조
 
@@ -30,7 +27,7 @@ START → supervisor(판단만, LLM) → (조건부 분기, 필요한 쪽만/둘
 | `cost_agent` | 요금 계산, 필요하면 최신 단가도 검색 (ReAct) | `search_aws_docs`, `calculate_cost` |
 | `synthesizer` | 검색+계산 결과를 하나로 합침 (조건부) | 없음 |
 
-## 과제 요구사항 대조
+## 프로젝트 요구사항
 
 | 요구사항 | 상태 |
 |---|---|
@@ -41,11 +38,6 @@ START → supervisor(판단만, LLM) → (조건부 분기, 필요한 쪽만/둘
 | 멀티턴 | ✅ `MemorySaver` (langgraph와 동일) |
 | 스트리밍 | ✅ `/query/stream` (SSE, 최종 답변만 토큰 단위로 흘려보냄) |
 
-## alex-rag / langgraph 대비 뭐가 다른가
-
-- alex-rag `graph.py`: 분기 없는 고정 파이프라인, 에이전트 1개
-- `langgraph`: 에이전트 1개, Tool 1개, ReAct 루프는 있지만 멀티 에이전트는 아님
-- `multi-agent-rag`(여기): **판단(supervisor)과 실행(retrieval/cost)이 분리된 진짜 계층형 멀티 에이전트**, Tool 2개, 병렬 실행
 
 ## 실행 방법
 
@@ -109,3 +101,8 @@ streamlit run streamlit_app.py     # 채팅 UI (터미널 2)
 - `search_aws_docs`, `calculate_cost` 도구 함수가 파일 상단에서 벡터스토어를 지연 초기화(lazy) 하는데, 동시 호출 시 경쟁 조건이 있어 락으로 방지함 (langgraph 코드리뷰에서 발견했던 것과 동일 패턴).
 - `synthesizer`가 둘 다 필요할 때만 LLM을 호출하도록 최적화했지만, `supervisor`는 모든 질문마다 LLM 호출 1번이 고정으로 붙음 (규칙 기반으로 바꾸면 절약 가능, 지금은 LLM 기반으로 확정).
 - EC2 캐시가 24시간 넘게 오래됐는데 갱신 시점에 마침 계산 요청이 들어오면, 그 1번의 호출은 480MB 다운로드 때문에 응답이 느려질 수 있음(수십 초 단위). 데모 전에 `refresh_ec2_prices.py`를 미리 한 번 돌려두는 걸 권장.
+
+## 기능 추가 계획
+
+- 대화 히스토리 저장 DB 구축 (실제 상용 LLM 서비스처럼 각각의 thread-id 를 통한 서랍형태 채팅창 목표)
+
