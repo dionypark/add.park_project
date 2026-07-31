@@ -64,7 +64,9 @@ RETRIEVAL_PROMPT = (
 
 
 def build_retrieval_subgraph():
-    llm = ChatAnthropic(model=config.GENERATION_MODEL).bind_tools([search_aws_docs])
+    llm = ChatAnthropic(model=config.GENERATION_MODEL, thinking={"type": "disabled"}).bind_tools(
+        [search_aws_docs]
+    )
 
     def agent(state: SubState):
         messages = [SystemMessage(content=RETRIEVAL_PROMPT), *state["messages"]]
@@ -93,7 +95,7 @@ COST_PROMPT = (
 
 def build_cost_subgraph():
     tools = [search_aws_docs, calculate_cost]
-    llm = ChatAnthropic(model=config.GENERATION_MODEL).bind_tools(tools)
+    llm = ChatAnthropic(model=config.GENERATION_MODEL, thinking={"type": "disabled"}).bind_tools(tools)
 
     def agent(state: SubState):
         messages = [SystemMessage(content=COST_PROMPT), *state["messages"]]
@@ -126,13 +128,15 @@ def _get_cost_graph():
     return _cost_graph
 
 
-def retrieval_agent_node(state: State):
-    result = _get_retrieval_graph().invoke({"messages": state["messages"]})
+def retrieval_agent_node(state: State, config):
+    # config를 그대로 넘겨야 서브그래프 내부 LLM 호출의 스트리밍 이벤트가
+    # 바깥쪽 그래프의 astream_events로 전파된다.
+    result = _get_retrieval_graph().invoke({"messages": state["messages"]}, config)
     return {"search_result": _last_text(result["messages"])}
 
 
-def cost_agent_node(state: State):
-    result = _get_cost_graph().invoke({"messages": state["messages"]})
+def cost_agent_node(state: State, config):
+    result = _get_cost_graph().invoke({"messages": state["messages"]}, config)
     return {"cost_result": _last_text(result["messages"])}
 
 
@@ -156,14 +160,16 @@ _router_llm = None
 def _get_router_llm():
     global _router_llm
     if _router_llm is None:
-        _router_llm = ChatAnthropic(model=config.GENERATION_MODEL).with_structured_output(RouteDecision)
+        _router_llm = ChatAnthropic(
+            model=config.GENERATION_MODEL, thinking={"type": "disabled"}
+        ).with_structured_output(RouteDecision)
     return _router_llm
 
 
-def supervisor(state: State):
+def supervisor(state: State, config):
     question = state["messages"][-1].content
     decision = _get_router_llm().invoke(
-        [SystemMessage(content=SUPERVISOR_PROMPT), ("human", question)]
+        [SystemMessage(content=SUPERVISOR_PROMPT), ("human", question)], config
     )
     return {
         "needs_search": decision.needs_search,
@@ -197,17 +203,17 @@ _synth_llm = None
 def _get_synth_llm():
     global _synth_llm
     if _synth_llm is None:
-        _synth_llm = ChatAnthropic(model=config.GENERATION_MODEL)
+        _synth_llm = ChatAnthropic(model=config.GENERATION_MODEL, thinking={"type": "disabled"})
     return _synth_llm
 
 
-def synthesizer(state: State):
+def synthesizer(state: State, config):
     search_result = state.get("search_result", "")
     cost_result = state.get("cost_result", "")
 
     if search_result and cost_result:
         prompt = SYNTHESIZER_PROMPT.format(search_result=search_result, cost_result=cost_result)
-        response = _get_synth_llm().invoke([HumanMessage(content=prompt)])
+        response = _get_synth_llm().invoke([HumanMessage(content=prompt)], config)
         final_text = _last_text([response]) or (
             response.content if isinstance(response.content, str) else str(response.content)
         )

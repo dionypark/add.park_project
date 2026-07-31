@@ -22,6 +22,13 @@ URLS = [
     "https://aws.amazon.com/ec2/pricing/",
     "https://aws.amazon.com/lambda/pricing/",
     "https://aws.amazon.com/fargate/pricing/",
+    # 비용 산정 도메인 강화: "어떤 인스턴스/구매옵션을 언제 골라야 하는지" 정성적 가이드.
+    # (숫자 자체는 pricing.py의 실시간 API가 담당하므로, 여기는 판단 기준 위주로 채운다.)
+    "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html",
+    "https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html",
+    "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-spot-instances.html",
+    "https://docs.aws.amazon.com/lambda/latest/dg/provisioned-concurrency.html",
+    "https://aws.amazon.com/aws-cost-management/aws-cost-optimization/",
 ]
 
 

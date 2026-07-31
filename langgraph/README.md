@@ -41,7 +41,7 @@ streamlit_app.py     Streamlit 채팅 UI — 세션 동안 thread_id 유지, "�
 ```bash
 cd langgraph
 source .venv/bin/activate
-cp .env.example .env               # ANTHROPIC_API_KEY, LANGCHAIN_API_KEY 입력 필요
+cp .env.example .env               # ANTHROPIC_API_KEY, LANGSMITH_API_KEY 입력 필요
 python build_vectordb.py           # 최초 1회
 uvicorn app:app --reload           # REST API 서버 (터미널 1)
 streamlit run streamlit_app.py     # 채팅 UI (터미널 2)

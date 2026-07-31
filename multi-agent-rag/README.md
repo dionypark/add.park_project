@@ -39,6 +39,7 @@ START → supervisor(판단만, LLM) → (조건부 분기, 필요한 쪽만/둘
 | 병렬 실행 | ✅ 검색+계산 둘 다 필요하면 `add_conditional_edges`가 리스트를 반환해 동시 실행(fan-out), `synthesizer`에서 fan-in |
 | FastAPI 배포 | ✅ `app.py` (`/query`, `thread_id`로 멀티턴) |
 | 멀티턴 | ✅ `MemorySaver` (langgraph와 동일) |
+| 스트리밍 | ✅ `/query/stream` (SSE, 최종 답변만 토큰 단위로 흘려보냄) |
 
 ## alex-rag / langgraph 대비 뭐가 다른가
 
@@ -52,12 +53,29 @@ START → supervisor(판단만, LLM) → (조건부 분기, 필요한 쪽만/둘
 cd multi-agent-rag
 source .venv/bin/activate
 pip install -r requirements.txt    # ijson 추가됨 (EC2 요금표 스트리밍 파싱용)
-cp .env.example .env    # ANTHROPIC_API_KEY, LANGCHAIN_API_KEY 입력 필요
+cp .env.example .env    # ANTHROPIC_API_KEY, LANGSMITH_API_KEY 입력 필요
 python build_vectordb.py
 python refresh_ec2_prices.py       # EC2 요금 캐시 최초 생성 (선택, 없으면 첫 EC2 계산 때 자동 생성)
 uvicorn app:app --reload           # REST API 서버 (터미널 1)
 streamlit run streamlit_app.py     # 채팅 UI (터미널 2)
 ```
+
+## RAG 문서 구성 — 숫자는 API, "언제/왜"는 문서
+
+실시간 요금 API를 붙였다고 RAG(문서 검색)가 필요 없어지는 게 아니라 역할이 다르다: **API는 "얼마"(정량), 문서는
+"언제/왜 이걸 골라야 하는지 + 할인 옵션은 어떻게 고르는지"(정성)**. `fetch_docs.py`의 `URLS`에 비용 산정 도메인에
+집중한 문서를 채워뒀다:
+
+| 문서 | 다루는 내용 |
+|---|---|
+| `compute-on-aws-how-to-choose` | EC2 vs Lambda vs ECS/EKS/Fargate, 워크로드 특성별 서비스 선택 기준 |
+| `wellarchitected-cost-optimization-pillar` | AWS Well-Architected 비용 최적화 원칙 |
+| `AWSEC2/.../instance-types.html` | 인스턴스 패밀리/사이즈를 워크로드에 맞게 고르는 기준 |
+| `savingsplans/.../what-is-savings-plans.html` | Savings Plans로 할인받는 조건과 방식 |
+| `AWSEC2/.../using-spot-instances.html` | Spot Instance를 언제 쓸 수 있는지, 중단 리스크 |
+| `lambda/.../provisioned-concurrency.html` | Lambda 콜드스타트 해결과 그 비용 트레이드오프 |
+| `aws-cost-optimization` | AWS 비용 최적화 총론 |
+| `*-pricing.md` (EC2/Lambda/Fargate) | 구매 옵션(온디맨드/예약/스팟)을 언제 골라야 하는지의 설명 (숫자 자체는 이제 `pricing.py`가 담당) |
 
 ## 요금 계산기(`calculate_cost`) 관련 주의
 
@@ -67,6 +85,24 @@ streamlit run streamlit_app.py     # 채팅 UI (터미널 2)
   - 실시간 조회가 실패하면(네트워크 문제 등) `tools.py`의 `FALLBACK_*` 하드코딩 값으로 자동 폴백하고, 응답에 "근사치(실시간 조회 실패, 폴백)"라고 표시한다.
 - 프리티어(무료 사용량)는 계산에 반영하지 않음.
 - RAG(문서 검색)와 실시간 요금 API는 서로 다른 역할: 문서는 "언제/왜 이 서비스를 쓰는지"(정성적 가이드), API는 "얼마인지"(정량적 단가) — 실시간 API를 붙였다고 RAG가 필요 없어지는 게 아니라 상호보완적임.
+
+## 스트리밍 (`/query/stream`)
+
+- SSE(Server-Sent Events)로 `POST /query/stream`을 호출하면 `event: phase`(검색/계산 필요 여부) →
+  `event: token`(텍스트 조각, 여러 번) → `event: done`(thread_id) 순으로 흘러온다.
+- **최종 답변이 나오는 노드의 토큰만** 스트리밍한다. supervisor가 검색/계산 중 뭐가 필요한지 정하는 순간 최종 답변이
+  어디서 나올지도 정해지기 때문:
+  - 둘 다 필요 → `synthesizer`가 합치는 답변을 스트리밍 (retrieval_agent/cost_agent는 병렬로 도는 중간 단계라
+    스트리밍 대상에서 제외함 — 안 그러면 두 서브그래프의 노드 이름이 둘 다 "agent"라 텍스트가 섞여 나옴)
+  - 하나만 필요 → 그 에이전트의 답변을 그대로 스트리밍
+- 구현 원리: LangGraph 서브그래프 안쪽 LLM 호출까지 스트리밍 이벤트가 전파되려면, 노드 함수가 그래프로부터
+  받은 `config`를 서브그래프 `.invoke()`/내부 LLM `.invoke()` 호출에 그대로 넘겨줘야 한다 (`graph.py`의
+  모든 노드 함수가 `config` 파라미터를 받아서 그대로 전달하는 이유).
+- **버그 하나 고침**: `claude-sonnet-5`는 확장 사고(extended thinking)가 기본으로 켜져 있는데, 스트리밍 상태에서
+  ReAct 루프가 2번째 턴을 돌 때(도구 호출 결과를 다시 보낼 때) 사고 블록이 깨져서
+  `anthropic.BadRequestError: messages.1.content.0.thinking.thinking: Field required`가 났음. 이 프로젝트는
+  깊은 추론이 필요한 게 아니라 도구 호출+계산 위주라 `thinking={"type": "disabled"}`로 꺼서 해결함.
+- Streamlit UI(`streamlit_app.py`)도 이 엔드포인트로 갈아타서 답변이 타이핑되듯 나옴.
 
 ## 알려진 제약
 

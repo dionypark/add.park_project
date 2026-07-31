@@ -20,9 +20,12 @@
 | 2026-07-09 | 7주차 `langchain` 마이그레이션 구현 + 코드 리뷰 반영 | 완료 |
 | 2026-07-14 | 8주차 `langgraph` ReAct 에이전트 구현 + Streamlit UI 교체 | 완료 |
 | 2026-07-22 | 폴더명 정리(`langchain`/`langgraph`) + 실제 AWS 문서로 데이터 교체 | 완료 |
-| 2026-07-26 (일) | Docker 컨테이너 패키징 + Docker Compose 실행, AWS EC2 배포(외부 접근 가능하도록 구성) | 예정 |
+| 2026-07-26 (일) | Docker 컨테이너 패키징 + Docker Compose 실행, AWS EC2 배포(외부 접근 가능하도록 구성) | 밀림 → 08-06로 재조정 |
 | 2026-07-28 | 최종 포폴 `multi-agent-rag`(구 cascade-rag-agent) 멀티 에이전트(supervisor+retrieval+cost) 구현, AWS Price List API로 Lambda/EC2/Fargate 실시간 요금 조회 연동(EC2는 로컬 캐싱), 구조에 안 맞던 폴더명(cascade→multi-agent-rag) 정정 | 완료 |
-| 2026-08-02 (일) 즈음 | GitHub Actions로 push 시 자동 빌드·배포되는 CI/CD 파이프라인 구축 | 예정 |
-| 미정 | 최종 포폴 `multi-agent-rag` FastAPI 배포 마무리 | 예정 |
+| 2026-07-31 | `/query/stream`(SSE) 스트리밍 응답 추가, 비용 산정 도메인 문서 5종 보강(인스턴스 선택/Savings Plans/Spot/Provisioned Concurrency), `langgraph`(싱글+도구1개) vs `single-agent-baseline`(싱글+도구2개) vs `multi-agent-rag`(멀티+도구2개) 3자 비교용 LangSmith 평가 하네스 구축(질문 30문항, evaluator 3종) | 완료(평가 실행은 API 사용량 한도로 08-01 이후 재개) |
+| 2026-08-01 (토) | LangSmith 3자 비교 평가 결과 분석·정리. 10문항 예비 실행에서 **"멀티 에이전트 구조 자체보다 계산기 도구 추가가 더 큰 효과"**라는 걸 확인함 — 이 관찰이 실제로 30문항 규모에서도 유지되는지 검증하고, 결과를 포트폴리오 README에 정직하게(과장 없이) 기록 | 예정 |
+| 2026-08-06 (목) | Docker 컨테이너 패키징 + Docker Compose 실행. `multi-agent-rag`는 임베딩 모델(sentence-transformers) 때문에 이미지가 무거울 수 있어, 멀티스테이지 빌드로 줄일지 검토 | 예정 |
+| 2026-08-09 (일) | GitHub Actions로 push 시 자동 빌드·배포되는 CI/CD 파이프라인 구축 | 예정 |
+| 2026-08-16 (일) | **최종 포폴 `multi-agent-rag` AWS EC2 배포 완료 (배포 데드라인)** — 외부에서 접근 가능한 상태로 확인 | 예정 |
 
-목표일이 정해지면 마지막 줄에 채워 넣을 예정.
+목표일: 2026-08-16(일) 배포 데드라인.

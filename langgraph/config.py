@@ -19,5 +19,5 @@ CHUNK_OVERLAP = 100
 
 TOP_K = 4
 
-# LangSmith: LANGCHAIN_TRACING_V2=true, LANGCHAIN_API_KEY, LANGCHAIN_PROJECT는
+# LangSmith: LANGSMITH_TRACING_V2=true, LANGSMITH_API_KEY, LANGSMITH_PROJECT는
 # .env에서 로드되어 langchain/langsmith 라이브러리가 알아서 읽는다 (코드에서 직접 참조 안 함).
