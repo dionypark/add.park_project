@@ -28,6 +28,7 @@ DATASET_NAME = "aws-advisor-comparison-eval"
 
 # category: "search_only"(둘 다 가진 search_aws_docs만으로 답 가능) /
 #           "needs_calc"(calculate_cost로 실제 숫자 계산이 필요)
+# 30문항에서 토큰 사용량 문제로 20문항(카테고리당 10개)으로 축소함 - 겹치는 주제/스타일 위주로 제외.
 EVAL_QUESTIONS = [
     {
         "question": "트래픽이 거의 없는 개인 프로젝트인데 EC2, Lambda, Fargate 중 뭘 써야 해?",
@@ -67,6 +68,31 @@ EVAL_QUESTIONS = [
         "category": "search_only",
     },
     {
+        "question": "배치 작업(batch processing)에는 어떤 컴퓨팅 서비스가 적합해?",
+        "answer": "AWS Batch가 적합하다. 작업 볼륨과 요구사항에 맞게 컴퓨팅 리소스를 자동으로 프로비저닝하고 스케줄링/자원 할당을 대신 처리해준다.",
+        "category": "search_only",
+    },
+    {
+        "question": "머신러닝 학습(training)과 추론(inference)은 각각 어떤 컴퓨팅 특성이 필요해?",
+        "answer": "학습은 GPU 등 고성능 연산 자원이 필요한 집중적인 단계이고, 추론은 저지연·고가용성이 필요한 상시 서비스 단계라 요구사항이 다르다.",
+        "category": "search_only",
+    },
+    {
+        "question": "Reserved Instance와 Savings Plans의 차이는 뭐야?",
+        "answer": "Reserved Instance는 특정 인스턴스 구성에 대한 용량을 예약하는 방식이고, Savings Plans는 특정 컴퓨팅 사용량(달러/시간) 약정으로 인스턴스 패밀리나 리전 변경에 더 유연하게 대응할 수 있다.",
+        "category": "search_only",
+    },
+    {
+        "question": "t3, m5, c5 같은 EC2 인스턴스 패밀리는 어떤 기준으로 골라?",
+        "answer": "t 시리즈는 버스터블 범용(저비용, 간헐적 워크로드), m 시리즈는 범용 균형형, c 시리즈는 컴퓨팅 최적화(CPU 집약적 워크로드)에 적합하다.",
+        "category": "search_only",
+    },
+    {
+        "question": "비용 최적화 기둥에서 '수요에 맞게 지출하기'는 구체적으로 뭘 의미해?",
+        "answer": "Auto Scaling 등을 활용해 실제 필요한 만큼만 리소스를 사용하고, 사용하지 않는 유휴 리소스에 대한 지출을 줄이는 것을 의미한다.",
+        "category": "search_only",
+    },
+    {
         "question": "Lambda로 월 100만 건 요청, 평균 실행시간 200ms, 메모리 512MB면 한 달 요금이 대략 얼마나 나와?",
         "answer": "약 $1.87 (요청 요금 $0.20 + 실행 시간 요금 $1.67).",
         "category": "needs_calc",
@@ -91,67 +117,6 @@ EVAL_QUESTIONS = [
         "answer": "약 $3.08 (요청 요금 $1.00 + 실행 시간 요금 $2.08).",
         "category": "needs_calc",
     },
-    # --- 10문항 x 2(search_only+needs_calc) 추가 (총 30문항으로 확장) ---
-    {
-        "question": "웹 애플리케이션처럼 상시 가용성이 필요한 서비스엔 Spot Instance를 써도 될까?",
-        "answer": "부적합하다. Spot Instance는 언제든 중단될 수 있어서 상시 가용성이 필요한 프로덕션 웹 서비스에는 위험하고, On-Demand나 Reserved Instance/Savings Plans가 적합하다.",
-        "category": "search_only",
-    },
-    {
-        "question": "배치 작업(batch processing)에는 어떤 컴퓨팅 서비스가 적합해?",
-        "answer": "AWS Batch가 적합하다. 작업 볼륨과 요구사항에 맞게 컴퓨팅 리소스를 자동으로 프로비저닝하고 스케줄링/자원 할당을 대신 처리해준다.",
-        "category": "search_only",
-    },
-    {
-        "question": "머신러닝 학습(training)과 추론(inference)은 각각 어떤 컴퓨팅 특성이 필요해?",
-        "answer": "학습은 GPU 등 고성능 연산 자원이 필요한 집중적인 단계이고, 추론은 저지연·고가용성이 필요한 상시 서비스 단계라 요구사항이 다르다.",
-        "category": "search_only",
-    },
-    {
-        "question": "EC2와 Fargate 중에 어떤 게 관리 부담이 적어?",
-        "answer": "Fargate가 관리 부담이 훨씬 적다. 서버/인스턴스를 직접 프로비저닝하거나 관리할 필요가 없고, EC2는 인스턴스 운영을 직접 관리해야 한다.",
-        "category": "search_only",
-    },
-    {
-        "question": "AWS 비용을 아끼기 위한 조직 차원의 접근은 뭐가 있어?",
-        "answer": "전체 비용(TCO)을 측정하고 인식하는 문화를 조직 내에 만들고, 관리형 서비스를 활용해 운영 부담과 비용을 함께 줄이는 접근이 강조된다.",
-        "category": "search_only",
-    },
-    {
-        "question": "Reserved Instance와 Savings Plans의 차이는 뭐야?",
-        "answer": "Reserved Instance는 특정 인스턴스 구성에 대한 용량을 예약하는 방식이고, Savings Plans는 특정 컴퓨팅 사용량(달러/시간) 약정으로 인스턴스 패밀리나 리전 변경에 더 유연하게 대응할 수 있다.",
-        "category": "search_only",
-    },
-    {
-        "question": "t3, m5, c5 같은 EC2 인스턴스 패밀리는 어떤 기준으로 골라?",
-        "answer": "t 시리즈는 버스터블 범용(저비용, 간헐적 워크로드), m 시리즈는 범용 균형형, c 시리즈는 컴퓨팅 최적화(CPU 집약적 워크로드)에 적합하다.",
-        "category": "search_only",
-    },
-    {
-        "question": "Lambda Provisioned Concurrency와 그냥 온디맨드 Lambda 중 언제 Provisioned를 써야 손해가 아니야?",
-        "answer": "트래픽이 예측 가능하고 지속적으로 높으며 콜드 스타트 민감도가 높은 경우에 유리하다. 트래픽이 간헐적이면 오히려 온디맨드보다 비용 손해다.",
-        "category": "search_only",
-    },
-    {
-        "question": "여러 컴퓨팅 서비스를 한 워크로드에 같이 쓰는 게 가능해?",
-        "answer": "가능하다. 예를 들어 웹 프론트는 Fargate, 이벤트 기반 백엔드는 Lambda, 배치 처리는 AWS Batch처럼 혼합해서 쓰는 것도 일반적이다.",
-        "category": "search_only",
-    },
-    {
-        "question": "비용 최적화 기둥에서 '수요에 맞게 지출하기'는 구체적으로 뭘 의미해?",
-        "answer": "Auto Scaling 등을 활용해 실제 필요한 만큼만 리소스를 사용하고, 사용하지 않는 유휴 리소스에 대한 지출을 줄이는 것을 의미한다.",
-        "category": "search_only",
-    },
-    {
-        "question": "EC2 t3.micro를 한 달 내내(730시간) 켜두면 요금이 얼마야?",
-        "answer": "약 $7.59 (시간당 $0.0104 x 730시간).",
-        "category": "needs_calc",
-    },
-    {
-        "question": "EC2 m5.large를 하루 24시간, 한 달(30일=720시간) 계속 운영하면 요금이 얼마야?",
-        "answer": "약 $69.12 (시간당 $0.096 x 720시간).",
-        "category": "needs_calc",
-    },
     {
         "question": "Lambda로 월 200만 건 요청, 평균 실행시간 150ms, 메모리 1024MB(1GB)면 요금은?",
         "answer": "약 $5.40 (요청 요금 $0.40 + 실행 시간 요금 $5.00).",
@@ -163,23 +128,8 @@ EVAL_QUESTIONS = [
         "category": "needs_calc",
     },
     {
-        "question": "EC2 t3.medium 두 대를 각각 730시간씩 운영하면 총 요금은?",
-        "answer": "약 $60.74 (인스턴스 1대당 $30.37 x 2대).",
-        "category": "needs_calc",
-    },
-    {
         "question": "Lambda 월 10만 건 요청, 평균 500ms, 메모리 128MB면 요금은?",
         "answer": "약 $0.12 (요청 요금 $0.02 + 실행 시간 요금 $0.10).",
-        "category": "needs_calc",
-    },
-    {
-        "question": "EC2 t3.micro를 하루 10시간씩 한 달(30일=300시간) 운영하는 것과, t3.medium을 하루 5시간씩 한 달(150시간) 운영하는 것 중 뭐가 더 저렴해?",
-        "answer": "t3.micro 쪽이 더 저렴하다 (t3.micro 300시간 x $0.0104 = 약 $3.12, t3.medium 150시간 x $0.0416 = 약 $6.24로 t3.medium이 약 2배 더 비쌈).",
-        "category": "needs_calc",
-    },
-    {
-        "question": "Fargate 0.25 vCPU, 512MB로 하루 24시간, 한 달 30일(720시간) 운영하면 요금이 얼마야?",
-        "answer": "약 $8.89 (vCPU 요금 $7.29 + 메모리 요금 $1.60).",
         "category": "needs_calc",
     },
     {

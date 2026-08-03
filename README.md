@@ -23,8 +23,8 @@
 | 2026-07-22 | 폴더명 정리(`langchain`/`langgraph`) + 실제 AWS 문서로 데이터 교체 | 완료 |
 | 2026-07-26 (일) | Docker 컨테이너 패키징 + Docker Compose 실행, AWS EC2 배포(외부 접근 가능하도록 구성) | 밀림 → 08-06로 재조정 |
 | 2026-07-28 | 최종 포폴 `multi-agent-rag`(구 cascade-rag-agent) 멀티 에이전트(supervisor+retrieval+cost) 구현, AWS Price List API로 Lambda/EC2/Fargate 실시간 요금 조회 연동(EC2는 로컬 캐싱), 구조에 안 맞던 폴더명(cascade→multi-agent-rag) 정정 | 완료 |
-| 2026-07-31 | `/query/stream`(SSE) 스트리밍 응답 추가, 비용 산정 도메인 문서 5종 보강(인스턴스 선택/Savings Plans/Spot/Provisioned Concurrency), `langgraph`(싱글+도구1개) vs `single-agent-baseline`(싱글+도구2개) vs `multi-agent-rag`(멀티+도구2개) 3자 비교용 LangSmith 평가 하네스 구축(질문 30문항, evaluator 3종) | 완료(평가 실행은 API 사용량 한도로 08-01 이후 재개) |
-| 2026-08-01 (토) | LangSmith 3자 비교 평가 결과 분석·정리. 10문항 예비 실행에서 **"멀티 에이전트 구조 자체보다 계산기 도구 추가가 더 큰 효과"**라는 걸 확인함 — 이 관찰이 실제로 30문항 규모에서도 유지되는지 검증하고, `evaluation/README.md`에 결과를 정직하게(과장 없이) 기록 | 예정 |
+| 2026-07-31 | `/query/stream`(SSE) 스트리밍 응답 추가, 비용 산정 도메인 문서 5종 보강(인스턴스 선택/Savings Plans/Spot/Provisioned Concurrency), `langgraph`(싱글+도구1개) vs `single-agent-baseline`(싱글+도구2개) vs `multi-agent-rag`(멀티+도구2개) 3자 비교용 LangSmith 평가 하네스 구축 — 30문항으로 확장했다가 토큰 사용량이 커서 20문항(카테고리당 10개)으로 재조정, evaluator 3종 | 완료(평가 실행은 API 사용량 한도로 08-01 이후 재개) |
+| 2026-08-01 (토) | LangSmith 3자 비교 평가 결과 분석·정리. 10문항 예비 실행에서 **"멀티 에이전트 구조 자체보다 계산기 도구 추가가 더 큰 효과"**라는 걸 확인함 — 이 관찰이 실제로 20문항 규모에서도 유지되는지 검증하고, `evaluation/README.md`에 결과를 정직하게(과장 없이) 기록 | 예정 |
 | 2026-08-02 | Thread-Id 기반 히스토리 영속 저장 구현 — 지금 `MemorySaver`는 서버 껐다 켜면 대화가 날아감. 실제 상용 LLM 서비스처럼 thread-id별 대화를 DB에 영속 저장해서 서랍(사이드바) 형태로 이어보는 게 목표 | 예정 |
 | 2026-08-06 (목) | Docker 컨테이너 패키징 + Docker Compose 실행. `multi-agent-rag`는 임베딩 모델(sentence-transformers) 때문에 이미지가 무거울 수 있어, 멀티스테이지 빌드로 줄일지 검토 | 예정 |
 | 2026-08-09 (일) | GitHub Actions로 push 시 자동 빌드·배포되는 CI/CD 파이프라인 구축 | 예정 |
