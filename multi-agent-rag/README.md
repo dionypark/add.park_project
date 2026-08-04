@@ -106,3 +106,5 @@ streamlit run streamlit_app.py     # 채팅 UI (터미널 2)
 
 - 대화 히스토리 저장 DB 구축 (실제 상용 LLM 서비스처럼 각각의 thread-id 를 통한 서랍형태 채팅창 목표)
 
+- CI 테스트용 변경사항 
+
