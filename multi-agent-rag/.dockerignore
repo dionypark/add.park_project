@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.git/
+vectordb/
+data/ec2_price_cache.json

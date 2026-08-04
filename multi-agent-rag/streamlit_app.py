@@ -23,10 +23,33 @@ if "thread_id" not in st.session_state:
 
 with st.sidebar:
     st.caption(f"대화방 번호: {st.session_state.thread_id or '(아직 없음, 첫 질문 후 생성됨)'}")
-    if st.button("새 대화 시작"):
+    if st.button("새 대화 시작", use_container_width=True):
         st.session_state.messages = []
         st.session_state.thread_id = None
         st.rerun()
+
+    st.divider()
+    st.caption("지난 대화")
+    try:
+        threads = requests.get(f"{API_URL}/threads", timeout=10).json()
+    except requests.exceptions.RequestException:
+        threads = []
+
+    if not threads:
+        st.caption("_아직 지난 대화가 없어요._")
+    for t in threads:
+        is_current = t["thread_id"] == st.session_state.thread_id
+        label = ("📍 " if is_current else "") + t["preview"]
+        if st.button(label, key=f"thread-{t['thread_id']}", use_container_width=True):
+            try:
+                history = requests.get(f"{API_URL}/threads/{t['thread_id']}", timeout=10).json()
+                st.session_state.thread_id = history["thread_id"]
+                st.session_state.messages = [
+                    {"role": m["role"], "content": m["content"]} for m in history["messages"]
+                ]
+                st.rerun()
+            except requests.exceptions.RequestException as e:
+                st.error(f"대화를 불러오지 못했습니다: {e}")
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):

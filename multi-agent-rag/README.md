@@ -35,7 +35,7 @@ START → supervisor(판단만, LLM) → (조건부 분기, 필요한 쪽만/둘
 | 서브그래프 활용 | ✅ retrieval_agent, cost_agent를 별도 컴파일된 그래프로 만들어 노드 함수 안에서 호출 |
 | 병렬 실행 | ✅ 검색+계산 둘 다 필요하면 `add_conditional_edges`가 리스트를 반환해 동시 실행(fan-out), `synthesizer`에서 fan-in |
 | FastAPI 배포 | ✅ `app.py` (`/query`, `thread_id`로 멀티턴) |
-| 멀티턴 | ✅ `MemorySaver` (langgraph와 동일) |
+| 멀티턴 | ✅ `SqliteSaver`/`AsyncSqliteSaver`(영속 저장, 서랍 UI) |
 | 스트리밍 | ✅ `/query/stream` (SSE, 최종 답변만 토큰 단위로 흘려보냄) |
 
 
@@ -102,9 +102,68 @@ streamlit run streamlit_app.py     # 채팅 UI (터미널 2)
 - `synthesizer`가 둘 다 필요할 때만 LLM을 호출하도록 최적화했지만, `supervisor`는 모든 질문마다 LLM 호출 1번이 고정으로 붙음 (규칙 기반으로 바꾸면 절약 가능, 지금은 LLM 기반으로 확정).
 - EC2 캐시가 24시간 넘게 오래됐는데 갱신 시점에 마침 계산 요청이 들어오면, 그 1번의 호출은 480MB 다운로드 때문에 응답이 느려질 수 있음(수십 초 단위). 데모 전에 `refresh_ec2_prices.py`를 미리 한 번 돌려두는 걸 권장.
 
+## 대화 히스토리 영속 저장 + 서랍형 UI
+
+`MemorySaver`(메모리에만 저장, 서버 재시작하면 날아감) 대신 **SQLite 기반 체크포인터**를 써서
+`checkpoints.sqlite` 파일에 저장한다 — 서버를 껐다 켜도(혹은 배포 후 컨테이너를 재시작해도) 같은
+`thread_id`로 물어보면 이전 대화를 그대로 이어간다. 여기에 사이드바 "서랍" UI까지 붙여서, 새로고침(F5)해도
+예전 대화 목록에서 클릭해 다시 열어볼 수 있다.
+
+### 동기(SqliteSaver) vs 비동기(AsyncSqliteSaver) — 왜 둘 다 있나
+
+- `/query`(일반 응답), 평가 스크립트(`evaluate_comparison.py`)는 그래프를 **동기(`.invoke()`)**로 호출한다 →
+  **`SqliteSaver`**(동기 전용)로 충분함.
+- `/query/stream`(SSE 토큰 스트리밍)은 `astream_events()`라는 **비동기 전용 API**를 쓴다 — LangGraph에
+  이거랑 동급의 동기 버전이 없어서, 토큰 단위 실시간 스트리밍을 하려면 비동기가 필수다. `SqliteSaver`를
+  비동기 실행 중에 쓰면 `"The SqliteSaver does not support async methods"` 에러가 난다.
+- 그래서 `build_agent_graph(checkpointer=...)`가 체크포인터를 외부에서 주입받게 만들고: 평가 스크립트는
+  기본값(동기 `SqliteSaver` 자동 생성)을 그대로 쓰고, `app.py`의 `lifespan`은 **`AsyncSqliteSaver`**를
+  직접 만들어서 넘긴다. 둘 다 같은 `checkpoints.sqlite` 파일을 보므로 데이터는 하나로 합쳐진다.
+- **비동기가 무조건 더 좋은 건 아님** — 답변 전체 완성 시간은 동기/비동기 둘 다 동일하고, 체감 반응성(첫
+  토큰까지의 시간)만 비동기가 빠르다. 대신 코드 복잡도와 버그 발생 가능성은 비동기 쪽이 훨씬 높다(아래
+  버그 참고). "실시간 타이핑 효과"라는 UX를 위해 일부러 감수한 트레이드오프.
+
+### 겪은 버그 2개
+
+1. `sqlite3.connect()`로 만든 파일 경로에 파일이 없는 상태에서 Docker 볼륨 마운트(`-v host:container`)를
+   하면, Docker가 그 경로를 **자동으로 디렉토리로 생성**해버린다 (파일인지 폴더인지 모르니까). 그러면
+   컨테이너 안에서 `sqlite3.connect()`가 "unable to open database file" 에러를 냄. **해결**: 마운트 전에
+   호스트에 `touch checkpoints.sqlite`로 빈 파일을 미리 만들어둬야 함.
+2. `langgraph-checkpoint-sqlite`(2.0.11)가 내부적으로 `aiosqlite.Connection.is_alive()`를 호출하는데,
+   최신 `aiosqlite`(0.22.1)에서 이 메서드가 없어져서 `AttributeError` 발생. **해결**: `aiosqlite==0.20.0`으로
+   버전 고정.
+
+### 서랍 UI 구현
+
+- `app.py`에 `GET /threads`(전체 대화 목록, 첫 질문을 미리보기로), `GET /threads/{thread_id}`(그 대화의
+  전체 메시지) 두 엔드포인트 추가. `checkpoints` 테이블에서 `thread_id`별 `MAX(rowid)`로 최근 활동 순 정렬.
+- `streamlit_app.py` 사이드바에 그 목록을 버튼으로 뿌려서, 클릭하면 `st.session_state.messages`/`thread_id`를
+  그 대화로 갈아끼우고 재진입.
+- 회원가입/로그인은 없음 — `thread_id`가 랜덤 UUID라 사실상 그 값을 아는 사람만 그 대화에 접근 가능한
+  구조. 여러 사용자가 동시에 써도 서로 다른 `thread_id`로 자연스럽게 분리되니 지금 규모(포폴 데모)엔
+  이걸로 충분하다고 판단함. (진짜 로그인 기반 "내 대화만 보기"는 별도 인증 시스템이 필요해서 범위 밖으로 둠)
+
+**Docker 배포 시 주의**: `checkpoints.sqlite`도 `vectordb/`처럼 볼륨 마운트를 안 하면 컨테이너 재시작 때
+같이 날아간다 (아래 `docker-compose.yml` 참고).
+
+## FastAPI + Streamlit 같이 배포 (`docker-compose.yml`)
+
+Dockerfile은 FastAPI(`api`)만 실행하도록 되어 있어서, 링크 하나로 채팅 화면까지 보여주려면 Streamlit도
+같이 띄워야 한다. 이미지는 하나만 빌드하고, `docker-compose.yml`이 그 이미지를 **두 개의 컨테이너**로
+서로 다른 커맨드로 실행한다:
+
+```bash
+docker compose up --build
+```
+
+- `api`: `uvicorn app:app`으로 8000번, `vectordb`/`checkpoints.sqlite` 볼륨 마운트
+- `ui`: `streamlit run streamlit_app.py`로 8501번, `API_URL=http://api:8000`로 `api` 컨테이너를 호출
+  (컴포즈 내부 네트워크에서는 서비스 이름이 곧 호스트명이라 `localhost`가 아니라 `api`를 씀)
+
+브라우저로 `http://localhost:8501` 접속하면 진짜 채팅 화면이 뜬다 (`http://EC2주소:8000`만 열면 API 문서
+화면만 보여서 데모용으론 부족함).
+
 ## 기능 추가 계획
 
-- 대화 히스토리 저장 DB 구축 (실제 상용 LLM 서비스처럼 각각의 thread-id 를 통한 서랍형태 채팅창 목표)
-
-- CI 테스트용 변경사항 
+(현재 없음 — 다음 항목은 로드맵 참고: EC2 배포, CI/CD `deploy:` job)
 

@@ -1,30 +1,39 @@
 import json
+import sqlite3
 import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
 
+import aiosqlite
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from pydantic import BaseModel
 
-from graph import _last_text, build_agent_graph
+from graph import CHECKPOINT_DB_PATH, _last_text, build_agent_graph
 
 _graph = None
 
 
 def _get_graph():
-    global _graph
     if _graph is None:
-        _graph = build_agent_graph()
+        raise RuntimeError("그래프가 아직 초기화되지 않았습니다 (lifespan이 안 끝난 상태에서 호출됨).")
     return _graph
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 서버가 요청을 받기 시작하기 전에 무거운 초기화(임베딩 모델, 벡터DB, LLM)를 미리 끝내둔다.
-    _get_graph()
+    # /query/stream이 astream_events()(비동기)를 쓰기 때문에, 동기 전용인 SqliteSaver로는
+    # 체크포인트를 못 남기고 에러가 난다(SqliteSaver does not support async methods).
+    # 그래서 여기서는 비동기 버전인 AsyncSqliteSaver를 직접 만들어서 넘긴다.
+    global _graph
+    conn = await aiosqlite.connect(CHECKPOINT_DB_PATH)
+    checkpointer = AsyncSqliteSaver(conn)
+    await checkpointer.setup()
+    _graph = build_agent_graph(checkpointer=checkpointer)
     yield
+    await conn.close()
 
 
 app = FastAPI(title="Multi-Agent RAG — AWS 서비스 선택/비용 최적화 어드바이저", lifespan=lifespan)
@@ -64,6 +73,70 @@ def query(request: QueryRequest):
         needs_search=result.get("needs_search", False),
         needs_calculation=result.get("needs_calculation", False),
     )
+
+
+class ThreadSummary(BaseModel):
+    thread_id: str
+    preview: str
+
+
+class ThreadMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ThreadHistory(BaseModel):
+    thread_id: str
+    messages: list[ThreadMessage]
+
+
+def _list_thread_ids() -> list[str]:
+    """checkpoints.sqlite에서 스레드별 가장 최근 활동 순으로 thread_id 목록을 뽑는다.
+    rowid는 삽입 순서를 반영하므로, thread_id별 최대 rowid로 정렬하면 최근 대화가 먼저 온다."""
+    conn = sqlite3.connect(CHECKPOINT_DB_PATH)
+    try:
+        cur = conn.execute(
+            "SELECT thread_id, MAX(rowid) AS last_row FROM checkpoints GROUP BY thread_id ORDER BY last_row DESC"
+        )
+        return [row[0] for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def _thread_messages(thread_id: str) -> list[dict]:
+    state = _get_graph().get_state({"configurable": {"thread_id": thread_id}})
+    history = []
+    for msg in state.values.get("messages", []):
+        if isinstance(msg, HumanMessage):
+            text = msg.content if isinstance(msg.content, str) else _last_text([msg])
+            if text:
+                history.append({"role": "user", "content": text})
+        elif isinstance(msg, AIMessage):
+            text = _last_text([msg])
+            if text:
+                history.append({"role": "assistant", "content": text})
+    return history
+
+
+@app.get("/threads", response_model=list[ThreadSummary])
+def list_threads():
+    """지난 대화 목록. 사이드바 '서랍' UI용 - 첫 질문을 미리보기로 보여준다."""
+    summaries = []
+    for thread_id in _list_thread_ids():
+        messages = _thread_messages(thread_id)
+        first_user_msg = next((m["content"] for m in messages if m["role"] == "user"), "")
+        preview = first_user_msg[:40] + ("..." if len(first_user_msg) > 40 else "")
+        summaries.append(ThreadSummary(thread_id=thread_id, preview=preview or "(빈 대화)"))
+    return summaries
+
+
+@app.get("/threads/{thread_id}", response_model=ThreadHistory)
+def get_thread(thread_id: str):
+    """특정 thread_id의 전체 대화 기록. 서랍에서 클릭해 다시 열 때 씀."""
+    messages = _thread_messages(thread_id)
+    if not messages:
+        raise HTTPException(status_code=404, detail="해당 thread_id의 대화를 찾을 수 없습니다.")
+    return ThreadHistory(thread_id=thread_id, messages=[ThreadMessage(**m) for m in messages])
 
 
 def _chunk_text(chunk) -> str:

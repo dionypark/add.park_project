@@ -29,6 +29,10 @@ URLS = [
     "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-spot-instances.html",
     "https://docs.aws.amazon.com/lambda/latest/dg/provisioned-concurrency.html",
     "https://aws.amazon.com/aws-cost-management/aws-cost-optimization/",
+    # EC2 배포 시 스토리지(EBS) 볼륨 타입/용량 선택 기준 - 인스턴스 타입 선택과 같은 급의
+    # "AWS 서비스/비용 선택" 질문이라 도메인 확장이 아니라 세부 보강임.
+    "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volume-types.html",
+    "https://aws.amazon.com/ebs/pricing/",
 ]
 
 

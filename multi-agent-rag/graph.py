@@ -6,11 +6,13 @@ supervisor(판단만) -> retrieval_agent / cost_agent(둘 다 자기만의 ReAct
 alex-rag/graph.py, langgraph/graph.py는 둘 다 "에이전트 1개"였는데, 여기서는
 판단(supervisor)과 실행(retrieval_agent, cost_agent)을 서로 다른 에이전트로 분리했다.
 """
+import os
+import sqlite3
 from typing import Annotated
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -19,6 +21,8 @@ from typing_extensions import TypedDict
 
 import config
 from tools import calculate_cost, search_aws_docs
+
+CHECKPOINT_DB_PATH = os.path.join(config.BASE_DIR, "checkpoints.sqlite")
 
 
 class State(TypedDict):
@@ -223,7 +227,11 @@ def synthesizer(state: State, config):
     return {"messages": [AIMessage(content=final_text)]}
 
 
-def build_agent_graph():
+def build_agent_graph(checkpointer=None):
+    """checkpointer를 안 넘기면 동기용 SqliteSaver를 기본으로 만든다(평가 스크립트처럼
+    이벤트 루프 없이 그냥 .invoke()만 쓰는 경우). FastAPI처럼 .astream_events() 같은
+    비동기 메서드를 쓰려면, AsyncSqliteSaver를 만들어서 직접 넘겨줘야 한다 - SqliteSaver는
+    동기 메서드만 지원해서 비동기 실행 중에 체크포인트를 못 남기고 에러가 난다."""
     graph_builder = StateGraph(State)
     graph_builder.add_node("supervisor", supervisor)
     graph_builder.add_node("retrieval_agent", retrieval_agent_node)
@@ -237,4 +245,11 @@ def build_agent_graph():
     graph_builder.add_edge("retrieval_agent", "synthesizer")
     graph_builder.add_edge("cost_agent", "synthesizer")
 
-    return graph_builder.compile(checkpointer=MemorySaver())
+    if checkpointer is None:
+        # SqliteSaver.from_conn_string()은 컨텍스트 매니저라 with 블록을 벗어나면 연결을 닫아버린다.
+        # 프로세스가 사는 동안 계속 열려있어야 하니, sqlite3.connect를 직접 해서 넘긴다
+        # (check_same_thread=False: 평가 스크립트가 여러 스레드에서 이 연결을 쓸 수 있어야 함).
+        conn = sqlite3.connect(CHECKPOINT_DB_PATH, check_same_thread=False)
+        checkpointer = SqliteSaver(conn)
+        checkpointer.setup()
+    return graph_builder.compile(checkpointer=checkpointer)
