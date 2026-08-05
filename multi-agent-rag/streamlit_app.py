@@ -11,10 +11,26 @@ import requests
 import streamlit as st
 
 API_URL = os.environ.get("API_URL", "http://127.0.0.1:8000")
+_LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "logo.svg")
 
-st.set_page_config(page_title="Multi-Agent RAG", page_icon="🧭")
-st.title("Multi-Agent RAG — AWS 어드바이저")
-st.caption("최종 포폴 · 멀티 에이전트(supervisor + retrieval + cost) + 멀티턴")
+st.set_page_config(page_title="가늠 — AWS 어드바이저", page_icon="☁️")
+
+with open(_LOGO_PATH, encoding="utf-8") as f:
+    _logo_svg = f.read()
+
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap');
+    .ganeum-header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+    .ganeum-header svg { width: 44px; height: 44px; border-radius: 10px; }
+    .ganeum-title { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 34px; color: #FF5FA2; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+st.markdown(f'<div class="ganeum-header">{_logo_svg}<span class="ganeum-title">가늠</span></div>', unsafe_allow_html=True)
+st.caption("AWS, 얼마나 필요한지 가늠해드립니다 · 멀티 에이전트(supervisor + retrieval + cost) + 멀티턴")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
