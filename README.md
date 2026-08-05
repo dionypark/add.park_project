@@ -25,9 +25,10 @@
 | 2026-07-28 | 최종 포폴 `multi-agent-rag`(구 cascade-rag-agent) 멀티 에이전트(supervisor+retrieval+cost) 구현, AWS Price List API로 Lambda/EC2/Fargate 실시간 요금 조회 연동(EC2는 로컬 캐싱), 구조에 안 맞던 폴더명(cascade→multi-agent-rag) 정정 | 완료 |
 | 2026-07-31 | `/query/stream`(SSE) 스트리밍 응답 추가, 비용 산정 도메인 문서 5종 보강(인스턴스 선택/Savings Plans/Spot/Provisioned Concurrency), `langgraph`(싱글+도구1개) vs `single-agent-baseline`(싱글+도구2개) vs `multi-agent-rag`(멀티+도구2개) 3자 비교용 LangSmith 평가 하네스 구축 — 30문항으로 확장했다가 토큰 사용량이 커서 20문항(카테고리당 10개)으로 재조정, evaluator 3종 | 완료(평가 실행은 API 사용량 한도로 08-01 이후 재개) |
 | 2026-08-01 (토) | LangSmith 3자 비교 평가 20문항으로 완주. **계산기 도구 추가가 가장 큰 개선 요인**(needs_calc에서 구조 차이 없음)이고, **멀티 에이전트 구조도 search_only에서 소폭이지만 재현 가능한 이득**(supervisor가 불필요한 tool 호출을 걸러줌)을 확인 — `evaluation/README.md`에 실제 답변 비교까지 포함해 정리 | 완료 |
-| 2026-08-02 | Thread-Id 기반 히스토리 영속 저장 구현 — 지금 `MemorySaver`는 서버 껐다 켜면 대화가 날아감. 실제 상용 LLM 서비스처럼 thread-id별 대화를 DB에 영속 저장해서 서랍(사이드바) 형태로 이어보는 게 목표 | 예정 |
-| 2026-08-06 (목) | Docker 컨테이너 패키징 + Docker Compose 실행. `multi-agent-rag`는 임베딩 모델(sentence-transformers) 때문에 이미지가 무거울 수 있어, 멀티스테이지 빌드로 줄일지 검토 | 예정 |
-| 2026-08-09 (일) | GitHub Actions로 push 시 자동 빌드·배포되는 CI/CD 파이프라인 구축 | 예정 |
-| 2026-08-16 (일) | **최종 포폴 `multi-agent-rag` AWS EC2 배포 완료 (배포 데드라인)** — 외부에서 접근 가능한 상태로 확인 | 예정 |
+| 2026-08-04 | Thread-Id 기반 히스토리 영속 저장 구현(`MemorySaver`→`SqliteSaver`/`AsyncSqliteSaver`, 서랍형 사이드바 UI) + Docker/Docker Compose 패키징(FastAPI+Streamlit 컨테이너 2개, 볼륨 마운트로 재시작해도 데이터 유지) + 비용 산정 문서 6종 추가 | 완료 (08-02, 08-06 계획을 앞당겨 함께 완료) |
+| 2026-08-04 | GitHub Actions CI 워크플로(`ci.yml`) 구축 — push/PR 시 `pip install` + `py_compile`로 빌드 확인 | 완료 (CD `deploy:` job은 EC2 수동 배포 검증 후 추가 예정) |
+| 2026-08-05 | 서비스 브랜딩 — 이름 "가늠"(Ganeum, "얼마나 필요한지 가늠하다") 확정, 로고 제작(구름+지폐다발+묶은 줄 = "비용 다이어트/최적화" 형상화), Streamlit 헤더/배경(하늘색 그라데이션 + 구름 도형 + Poppins 폰트)에 적용 | 완료 |
+| 2026-08-09 (일) | AWS EC2 인스턴스 생성 + 수동 배포 검증(SSH 접속 → Docker 설치 → `docker compose up --build`) | 예정 |
+| 2026-08-16 (일) | **최종 포폴 `multi-agent-rag` AWS EC2 배포 완료 (배포 데드라인)** — GitHub Actions CD로 자동 배포까지 포함해 외부에서 접근 가능한 상태로 확인 | 예정 |
 
 목표일: 2026-08-16(일) 배포 데드라인.

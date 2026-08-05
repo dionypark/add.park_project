@@ -4,6 +4,7 @@
 실행 전에 FastAPI 서버가 먼저 떠있어야 한다: uvicorn app:app --reload
 실행: streamlit run streamlit_app.py
 """
+import base64
 import json
 import os
 
@@ -11,26 +12,49 @@ import requests
 import streamlit as st
 
 API_URL = os.environ.get("API_URL", "http://127.0.0.1:8000")
-_LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "logo.svg")
+_LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "logo.png")
 
 st.set_page_config(page_title="가늠 — AWS 어드바이저", page_icon="☁️")
 
-with open(_LOGO_PATH, encoding="utf-8") as f:
-    _logo_svg = f.read()
+with open(_LOGO_PATH, "rb") as f:
+    _logo_b64 = base64.b64encode(f.read()).decode()
 
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap');
-    .ganeum-header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
-    .ganeum-header svg { width: 44px; height: 44px; border-radius: 10px; }
-    .ganeum-title { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 34px; color: #FF5FA2; }
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Jua&display=swap');
+    html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
+
+    /* 배경: 하늘색 그라데이션 + 은은한 구름 모양 (banapresso 참고 - 밝고 화사한 톤) */
+    .stApp {
+        background: linear-gradient(180deg, #CFE9F7 0%, #EAF5FB 45%, #FBFDFE 100%);
+    }
+    .ganeum-cloud {
+        position: fixed; pointer-events: none; z-index: 0;
+        background: #ffffff; border-radius: 50%; opacity: 0.55;
+        filter: blur(1px);
+    }
+
+    .ganeum-header { display: flex; justify-content: center; margin: 4px 0 -10px; position: relative; z-index: 1; }
+    .ganeum-header img { width: 240px; max-width: 70%; height: auto; }
     </style>
+
+    <div class="ganeum-cloud" style="width:140px; height:70px; top:60px; left:5%;"></div>
+    <div class="ganeum-cloud" style="width:100px; height:50px; top:180px; right:8%;"></div>
+    <div class="ganeum-cloud" style="width:80px; height:40px; top:340px; left:12%;"></div>
     """,
     unsafe_allow_html=True,
 )
-st.markdown(f'<div class="ganeum-header">{_logo_svg}<span class="ganeum-title">가늠</span></div>', unsafe_allow_html=True)
-st.caption("AWS, 얼마나 필요한지 가늠해드립니다 · 멀티 에이전트(supervisor + retrieval + cost) + 멀티턴")
+# 로고 PNG(투명 배경) 안에 "가늠"/"Ganeum" 워드마크가 이미 들어있어서 텍스트를 따로 안 붙인다.
+st.markdown(
+    f'<div class="ganeum-header"><img src="data:image/png;base64,{_logo_b64}" alt="가늠 로고"/></div>',
+    unsafe_allow_html=True,
+)
+st.markdown(
+    "<p style='text-align:center; color:#5B7089; font-size:15px; margin-top:4px; position:relative; z-index:1;'>"
+    "AWS, 얼마나 필요한지 가늠해드립니다 · 멀티 에이전트(supervisor + retrieval + cost) + 멀티턴</p>",
+    unsafe_allow_html=True,
+)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
