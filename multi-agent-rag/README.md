@@ -1,5 +1,7 @@
 # 최종 포트폴리오 — Multi-Agent RAG
 
+> CD 테스트 커밋 (2026-08-07) — 이 줄이 EC2에 반영되면 GitHub Actions 자동 배포 성공.
+
 `vanilla-rag` → `langchain` → `langgraph`를 거쳐 완성되는 최종 통합본. **계층형(Hierarchical) 멀티 에이전트** 구조로, `langgraph`(싱글 에이전트)의 다음 단계.
 > 실제 구조는 supervisor가 한 번 판단해서 필요한 에이전트로 병렬 분기(fan-out)하고 결과를 합류(fan-in)하는 **계층형 supervisor-worker 패턴**.`multi-agent-rag`.
 
