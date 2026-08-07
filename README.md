@@ -28,6 +28,7 @@
 | 2026-08-04 | Thread-Id 기반 히스토리 영속 저장 구현(`MemorySaver`→`SqliteSaver`/`AsyncSqliteSaver`, 서랍형 사이드바 UI) + Docker/Docker Compose 패키징(FastAPI+Streamlit 컨테이너 2개, 볼륨 마운트로 재시작해도 데이터 유지) + 비용 산정 문서 6종 추가 | 완료 (08-02, 08-06 계획을 앞당겨 함께 완료) |
 | 2026-08-04 | GitHub Actions CI 워크플로(`ci.yml`) 구축 — push/PR 시 `pip install` + `py_compile`로 빌드 확인 | 완료 (CD `deploy:` job은 EC2 수동 배포 검증 후 추가 예정) |
 | 2026-08-05 | 서비스 브랜딩 — 이름 "가늠"(Ganeum, "얼마나 필요한지 가늠하다") 확정, 로고 제작(구름+지폐다발+묶은 줄 = "비용 다이어트/최적화" 형상화), Streamlit 헤더/배경(하늘색 그라데이션 + 구름 도형 + Poppins 폰트)에 적용 | 완료 |
+| 2026-08-07 | 팀원 데모 중 발견한 버그 2건 수정: (1) EC2 요금 캐시가 없을 때 첫 계산 요청이 480MB 다운로드를 그대로 떠안아 응답이 멈춘 것처럼 보이던 문제 → 서버 기동 시점에 미리 캐시 준비 + `pricing.py`의 스트림 이중 읽기 버그(`premature EOF`) 수정, (2) 사이드바 "지난 대화" 목록이 `GET /threads`로 전체 사용자의 thread_id를 다 노출하던 프라이버시 문제 → 브라우저 세션별로 자기 thread_id만 기억하도록 변경 | 완료 |
 | 2026-08-09 (일) | AWS EC2 인스턴스 생성 + 수동 배포 검증(SSH 접속 → Docker 설치 → `docker compose up --build`) | 예정 |
 | 2026-08-16 (일) | **최종 포폴 `multi-agent-rag` AWS EC2 배포 완료 (배포 데드라인)** — GitHub Actions CD로 자동 배포까지 포함해 외부에서 접근 가능한 상태로 확인 | 예정 |
 

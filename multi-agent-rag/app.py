@@ -1,5 +1,4 @@
 import json
-import sqlite3
 import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -11,6 +10,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from pydantic import BaseModel
 
+import pricing
 from graph import CHECKPOINT_DB_PATH, _last_text, build_agent_graph
 
 _graph = None
@@ -32,6 +32,13 @@ async def lifespan(app: FastAPI):
     checkpointer = AsyncSqliteSaver(conn)
     await checkpointer.setup()
     _graph = build_agent_graph(checkpointer=checkpointer)
+
+    # EC2 요금 캐시가 없거나 오래됐으면 첫 사용자 요청이 아니라 서버 시작 시점에 미리
+    # 받아둔다 - 안 그러면 첫 EC2 관련 질문을 한 사용자가 480MB 다운로드를 그대로
+    # 떠안게 되어 응답이 수십 초~몇 분씩 멎은 것처럼 보인다.
+    if pricing.fetch_ec2_prices() is None:
+        print("[startup] EC2 요금 캐시 준비 실패 - calculate_cost가 하드코딩된 근사치로 폴백합니다.")
+
     yield
     await conn.close()
 
@@ -75,11 +82,6 @@ def query(request: QueryRequest):
     )
 
 
-class ThreadSummary(BaseModel):
-    thread_id: str
-    preview: str
-
-
 class ThreadMessage(BaseModel):
     role: str
     content: str
@@ -88,19 +90,6 @@ class ThreadMessage(BaseModel):
 class ThreadHistory(BaseModel):
     thread_id: str
     messages: list[ThreadMessage]
-
-
-def _list_thread_ids() -> list[str]:
-    """checkpoints.sqlite에서 스레드별 가장 최근 활동 순으로 thread_id 목록을 뽑는다.
-    rowid는 삽입 순서를 반영하므로, thread_id별 최대 rowid로 정렬하면 최근 대화가 먼저 온다."""
-    conn = sqlite3.connect(CHECKPOINT_DB_PATH)
-    try:
-        cur = conn.execute(
-            "SELECT thread_id, MAX(rowid) AS last_row FROM checkpoints GROUP BY thread_id ORDER BY last_row DESC"
-        )
-        return [row[0] for row in cur.fetchall()]
-    finally:
-        conn.close()
 
 
 def _thread_messages(thread_id: str) -> list[dict]:
@@ -118,21 +107,14 @@ def _thread_messages(thread_id: str) -> list[dict]:
     return history
 
 
-@app.get("/threads", response_model=list[ThreadSummary])
-def list_threads():
-    """지난 대화 목록. 사이드바 '서랍' UI용 - 첫 질문을 미리보기로 보여준다."""
-    summaries = []
-    for thread_id in _list_thread_ids():
-        messages = _thread_messages(thread_id)
-        first_user_msg = next((m["content"] for m in messages if m["role"] == "user"), "")
-        preview = first_user_msg[:40] + ("..." if len(first_user_msg) > 40 else "")
-        summaries.append(ThreadSummary(thread_id=thread_id, preview=preview or "(빈 대화)"))
-    return summaries
-
-
 @app.get("/threads/{thread_id}", response_model=ThreadHistory)
 def get_thread(thread_id: str):
-    """특정 thread_id의 전체 대화 기록. 서랍에서 클릭해 다시 열 때 씀."""
+    """특정 thread_id의 전체 대화 기록. 서랍에서 클릭해 다시 열 때 씀.
+
+    일부러 전체 thread_id를 나열하는 엔드포인트(GET /threads)를 두지 않았다 - 로그인 없는
+    구조라, 만약 그런 엔드포인트가 있으면 누구나 다른 사람의 질문 미리보기를 볼 수 있게 된다.
+    thread_id(랜덤 UUID)를 아는 사람만 그 대화를 열 수 있는 게 지금 구조의 유일한 방어선이라,
+    그 값은 각 클라이언트(Streamlit 세션)가 직접 기억해서 물어봐야 한다."""
     messages = _thread_messages(thread_id)
     if not messages:
         raise HTTPException(status_code=404, detail="해당 thread_id의 대화를 찾을 수 없습니다.")

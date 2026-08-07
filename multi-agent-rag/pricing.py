@@ -10,6 +10,7 @@
 모든 fetch는 실패하면 None을 반환한다 - tools.py가 하드코딩된 근사치로 폴백한다.
 """
 import json
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -125,37 +126,48 @@ def fetch_fargate_prices() -> dict:
 
 
 def refresh_ec2_cache() -> dict:
-    """EC2 480MB 가격표를 스트리밍으로 훑어서 지원 인스턴스 타입 가격만 뽑아 로컬에 저장한다."""
+    """EC2 480MB 가격표를 스트리밍으로 훑어서 지원 인스턴스 타입 가격만 뽑아 로컬에 저장한다.
+
+    products 섹션과 terms.OnDemand 섹션을 각각 훑어야 하는데, 살아있는 네트워크
+    스트림(resp.raw)은 한 번 읽으면 되감을 수 없다 - ijson이 내부적으로 청크 단위로
+    버퍼링해서 읽기 때문에, 같은 resp.raw로 두 번째 ijson.kvitems를 새로 시작하면
+    첫 번째 파서가 이미 읽어서 버린 바이트만큼 스트림 위치가 어긋나 "premature EOF"가 난다.
+    그래서 한 번만 내려받아 임시 파일(되감기 가능)에 쓰고, 그 파일 위에서 두 번 훑는다.
+    """
     version_url = _get_current_version_url("AmazonEC2")
     url = f"{PRICING_ROOT}{version_url}"
 
     with requests.get(url, stream=True, timeout=300) as resp:
         resp.raise_for_status()
-        resp.raw.decode_content = True
+        with tempfile.TemporaryFile() as tmp:
+            for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                tmp.write(chunk)
+            tmp.seek(0)
 
-        sku_to_instance = {}
-        for sku, product in ijson.kvitems(resp.raw, "products"):
-            attrs = product.get("attributes", {})
-            if (
-                attrs.get("location") == LOCATION
-                and attrs.get("instanceType") in EC2_INSTANCE_TYPES
-                and attrs.get("tenancy") == "Shared"
-                and attrs.get("operatingSystem") == "Linux"
-                and attrs.get("preInstalledSw") == "NA"
-                and attrs.get("capacitystatus") == "Used"
-            ):
-                sku_to_instance[sku] = attrs["instanceType"]
+            sku_to_instance = {}
+            for sku, product in ijson.kvitems(tmp, "products"):
+                attrs = product.get("attributes", {})
+                if (
+                    attrs.get("location") == LOCATION
+                    and attrs.get("instanceType") in EC2_INSTANCE_TYPES
+                    and attrs.get("tenancy") == "Shared"
+                    and attrs.get("operatingSystem") == "Linux"
+                    and attrs.get("preInstalledSw") == "NA"
+                    and attrs.get("capacitystatus") == "Used"
+                ):
+                    sku_to_instance[sku] = attrs["instanceType"]
 
-        prices = {}
-        if sku_to_instance:
-            for sku, term in ijson.kvitems(resp.raw, "terms.OnDemand"):
-                if sku not in sku_to_instance:
-                    continue
-                for offer_term in term.values():
-                    for dim in offer_term["priceDimensions"].values():
-                        price = float(dim["pricePerUnit"]["USD"])
-                        if price > 0:
-                            prices[sku_to_instance[sku]] = price
+            prices = {}
+            if sku_to_instance:
+                tmp.seek(0)
+                for sku, term in ijson.kvitems(tmp, "terms.OnDemand"):
+                    if sku not in sku_to_instance:
+                        continue
+                    for offer_term in term.values():
+                        for dim in offer_term["priceDimensions"].values():
+                            price = float(dim["pricePerUnit"]["USD"])
+                            if price > 0:
+                                prices[sku_to_instance[sku]] = price
 
     EC2_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     EC2_CACHE_PATH.write_text(json.dumps({"fetched_at": time.time(), "prices": prices}, indent=2))

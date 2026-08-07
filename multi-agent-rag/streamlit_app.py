@@ -60,6 +60,22 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = None
+if "my_thread_ids" not in st.session_state:
+    # 이 브라우저 세션에서 만든 thread_id만 기억한다 (최근 것이 앞).
+    # 서버에 "전체 대화 목록" 엔드포인트가 없으므로, 다른 사람이 만든 thread_id는 아예 알 수
+    # 없어서 사이드바에도 섞여 보이지 않는다. 단, 이 목록 자체는 세션에만 있어 새로고침하면
+    # 사라진다 (개별 대화 내용은 thread_id만 알면 서버에 계속 남아있음).
+    st.session_state.my_thread_ids = []
+
+
+def _thread_preview(thread_id: str) -> str:
+    try:
+        history = requests.get(f"{API_URL}/threads/{thread_id}", timeout=10).json()
+        first_user_msg = next((m["content"] for m in history["messages"] if m["role"] == "user"), "")
+        return first_user_msg[:40] + ("..." if len(first_user_msg) > 40 else "") if first_user_msg else "(빈 대화)"
+    except requests.exceptions.RequestException:
+        return "(불러오기 실패)"
+
 
 with st.sidebar:
     st.caption(f"대화방 번호: {st.session_state.thread_id or '(아직 없음, 첫 질문 후 생성됨)'}")
@@ -69,20 +85,15 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    st.caption("지난 대화")
-    try:
-        threads = requests.get(f"{API_URL}/threads", timeout=10).json()
-    except requests.exceptions.RequestException:
-        threads = []
-
-    if not threads:
+    st.caption("지난 대화 (이 브라우저에서 만든 것만)")
+    if not st.session_state.my_thread_ids:
         st.caption("_아직 지난 대화가 없어요._")
-    for t in threads:
-        is_current = t["thread_id"] == st.session_state.thread_id
-        label = ("📍 " if is_current else "") + t["preview"]
-        if st.button(label, key=f"thread-{t['thread_id']}", use_container_width=True):
+    for tid in st.session_state.my_thread_ids:
+        is_current = tid == st.session_state.thread_id
+        label = ("📍 " if is_current else "") + _thread_preview(tid)
+        if st.button(label, key=f"thread-{tid}", use_container_width=True):
             try:
-                history = requests.get(f"{API_URL}/threads/{t['thread_id']}", timeout=10).json()
+                history = requests.get(f"{API_URL}/threads/{tid}", timeout=10).json()
                 st.session_state.thread_id = history["thread_id"]
                 st.session_state.messages = [
                     {"role": m["role"], "content": m["content"]} for m in history["messages"]
@@ -130,6 +141,8 @@ if question:
                             placeholder.markdown(answer + "▌")
                         elif current_event == "done":
                             st.session_state.thread_id = data.get("thread_id", st.session_state.thread_id)
+                            if st.session_state.thread_id not in st.session_state.my_thread_ids:
+                                st.session_state.my_thread_ids.insert(0, st.session_state.thread_id)
                         elif current_event == "error":
                             answer += f"\n\n**오류:** {data.get('message')}"
 
