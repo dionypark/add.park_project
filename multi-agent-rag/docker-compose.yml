@@ -3,6 +3,7 @@ services:
   api:
     build: .
     image: multi-agent-rag
+    restart: unless-stopped
     ports:
       - "8000:8000"
     env_file:
@@ -16,6 +17,7 @@ services:
   # Streamlit 채팅 UI - api 컨테이너를 HTTP로만 호출, 자기 데이터는 없음
   ui:
     image: multi-agent-rag  # api가 먼저 빌드해둔 이미지를 그대로 재사용 (이미지 2개 안 만듦)
+    restart: unless-stopped
     ports:
       - "8501:8501"
     environment:

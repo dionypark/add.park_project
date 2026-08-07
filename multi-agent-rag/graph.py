@@ -61,14 +61,21 @@ def _last_text(messages) -> str:
 # ---------------------------------------------------------------------------
 
 RETRIEVAL_PROMPT = (
-    "당신은 AWS 문서 검색 전문가입니다. search_aws_docs 도구로 질문과 관련된 근거를 찾아 답하세요. "
-    "필요하면 검색어를 바꿔가며 여러 번 검색하세요. 문서에서 찾은 내용만 근거로 답하고, "
-    "출처(파일명-섹션)를 답변에 포함하세요."
+    "당신은 AWS/서버 운영 어드바이저입니다. search_aws_docs 도구로 질문과 관련된 근거를 먼저 찾아보세요 "
+    "(필요하면 검색어를 바꿔가며 여러 번 검색). 문서에서 찾은 내용은 반드시 출처(파일명-섹션)를 밝히고 "
+    "인용하세요.\n"
+    "검색 문서에 없는 내용이라도 질문에 답할 수 있는 지식이 있으면(예: 특정 AWS 서비스가 뭔지, S3/EBS "
+    "같은 서비스 개념, Docker/systemd/swap 메모리 설정 등 서버 운영/DevOps 지식) 알고 있는 대로 답하되, "
+    "그 부분은 '(문서 근거 없음, 일반 지식)'이라고 명확히 표시해서 검색 결과와 구분하세요. "
+    "모르는 내용을 지어내지는 마세요 - 정말 모르면 모른다고 하세요.\n"
+    "질문이 '이런 서비스를 만들려는데 뭘 써야 하나'처럼 전체 아키텍처를 묻는다면, 필요한 AWS 서비스들과 "
+    "구체적인 설정 옵션(인스턴스 타입, 스토리지 종류/용량, 리전 등)까지 구체적으로 추천하세요 - "
+    "'EC2가 필요합니다' 정도로 뭉뚱그리지 말고, 그 프로젝트 규모에 맞는 실제 선택지를 제시하세요."
 )
 
 
 def build_retrieval_subgraph():
-    llm = ChatAnthropic(model=config.GENERATION_MODEL, thinking={"type": "disabled"}).bind_tools(
+    llm = ChatAnthropic(model=config.GENERATION_MODEL, thinking={"type": "disabled"}, max_tokens=4096).bind_tools(
         [search_aws_docs]
     )
 
@@ -93,13 +100,18 @@ COST_PROMPT = (
     "당신은 AWS 요금 계산 전문가입니다. 질문에서 서비스명과 사용량(요청 수, 실행시간, 메모리, "
     "인스턴스 타입 등)을 파악해서 calculate_cost 도구로 예상 요금을 계산하세요. "
     "사용량이 명시 안 됐으면 search_aws_docs로 참고할 만한 기준을 찾아보거나, "
-    "합리적인 가정을 명시하고 계산하세요. 계산 결과와 그 가정을 답변에 포함하세요."
+    "합리적인 가정을 명시하고 계산하세요. 계산 결과와 그 가정을 답변에 포함하세요.\n"
+    "질문이 '이런 서비스를 만들려는데 뭘 써야 하고 얼마 드는지'처럼 프로젝트 전체를 설명하며 여러 "
+    "서비스가 필요한 경우, 구성요소별로 calculate_cost를 각각 반복 호출해서 항목별 요금을 구하고 "
+    "마지막에 합계를 제시하세요. calculate_cost는 lambda/ec2/fargate만 지원합니다 - S3, RDS, "
+    "DynamoDB, CloudFront 등 지원하지 않는 서비스는 일반적으로 알려진 단가로 대략 추정하되, 반드시 "
+    "'(대략적 추정치, 실시간 API 아님)'이라고 표시해서 calculate_cost의 정확한 값과 구분하세요."
 )
 
 
 def build_cost_subgraph():
     tools = [search_aws_docs, calculate_cost]
-    llm = ChatAnthropic(model=config.GENERATION_MODEL, thinking={"type": "disabled"}).bind_tools(tools)
+    llm = ChatAnthropic(model=config.GENERATION_MODEL, thinking={"type": "disabled"}, max_tokens=4096).bind_tools(tools)
 
     def agent(state: SubState):
         messages = [SystemMessage(content=COST_PROMPT), *state["messages"]]
@@ -154,8 +166,17 @@ class RouteDecision(BaseModel):
 
 
 SUPERVISOR_PROMPT = (
-    "사용자 질문을 보고, AWS 문서 검색이 필요한지(needs_search)와 요금 계산이 필요한지"
-    "(needs_calculation)를 판단하세요. 단순 인사말 등 둘 다 불필요하면 둘 다 false로 두세요."
+    "사용자 질문을 보고 두 가지를 판단하세요.\n"
+    "- needs_search: '언제/왜 이 서비스를 써야 하는지', '어떤 옵션이 있는지', '이게 뭔지', "
+    "'어떻게 설정/운영하는지' 같은 개념/가이드/서버 운영 정보가 필요하면 true. AWS 서비스 자체에 대한 "
+    "질문뿐 아니라 배포/운영/DevOps 관련 질문(예: 메모리 부족 대응, 프로세스 재시작 설정 등)도 포함한다.\n"
+    "- needs_calculation: 구체적인 요금/비용/가격이 궁금한 질문이면 true. '계산해줘'라고 명시적으로 "
+    "말하지 않아도 된다 - '얼마 나와', '비용이 얼마', '한 달에 얼마', '켜두면 얼마', '나가는지' 처럼 "
+    "금액을 묻는 뉘앙스가 있으면 needs_calculation=true로 판단한다. 인스턴스 타입, 사용 시간, 요청 수 "
+    "등 계산에 쓸 수 있는 구체적인 조건이 같이 언급되면 needs_calculation일 가능성이 특히 높다.\n"
+    "두 값은 동시에 true일 수 있다 (예: '이 상황엔 뭘 써야 하고 얼마나 나와?' -> 둘 다 true, "
+    "'이런 서비스를 만들려는데 뭘 써야 하고 비용은 어느 정도일지 알려줘'처럼 프로젝트 설명 + 설계 추천 "
+    "+ 견적을 같이 요구하는 경우도 둘 다 true). 단순 인사말처럼 둘 다 불필요하면 둘 다 false로 둔다."
 )
 
 _router_llm = None
@@ -197,7 +218,9 @@ def route_from_supervisor(state: State):
 # ---------------------------------------------------------------------------
 
 SYNTHESIZER_PROMPT = (
-    "아래는 서로 다른 전문가 에이전트가 만든 결과입니다. 이를 하나의 자연스러운 답변으로 종합하세요.\n\n"
+    "아래는 서로 다른 전문가 에이전트가 만든 결과입니다. 이를 하나의 자연스러운 답변으로 종합하세요. "
+    "서비스/아키텍처 추천과 비용 산정이 같이 필요한 질문이라면, ① 추천 서비스/설정을 먼저 정리하고 "
+    "② 그다음 항목별 예상 비용과 합계를 표나 목록으로 깔끔하게 정리하세요.\n\n"
     "[검색 결과]\n{search_result}\n\n[계산 결과]\n{cost_result}"
 )
 
@@ -207,7 +230,7 @@ _synth_llm = None
 def _get_synth_llm():
     global _synth_llm
     if _synth_llm is None:
-        _synth_llm = ChatAnthropic(model=config.GENERATION_MODEL, thinking={"type": "disabled"})
+        _synth_llm = ChatAnthropic(model=config.GENERATION_MODEL, thinking={"type": "disabled"}, max_tokens=4096)
     return _synth_llm
 
 

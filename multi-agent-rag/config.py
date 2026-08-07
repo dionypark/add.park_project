@@ -1,8 +1,14 @@
 import os
 
+import torch
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# t3.small(vCPU 2개) 배포 기준 - 임베딩 모델(HuggingFaceEmbeddings)이 기본값으로 CPU 코어 수만큼
+# 쓰레드를 잡으려 해서, vCPU 수에 맞춰 제한 안 하면 다른 프로세스(FastAPI/Streamlit)와 CPU를 놓고
+# 경합해 오히려 느려질 수 있다.
+torch.set_num_threads(2)
 
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 
