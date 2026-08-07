@@ -4,12 +4,13 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 import aiosqlite
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from pydantic import BaseModel
 
+import auth
 import pricing
 from graph import CHECKPOINT_DB_PATH, _last_text, build_agent_graph
 
@@ -27,6 +28,8 @@ async def lifespan(app: FastAPI):
     # /query/stream이 astream_events()(비동기)를 쓰기 때문에, 동기 전용인 SqliteSaver로는
     # 체크포인트를 못 남기고 에러가 난다(SqliteSaver does not support async methods).
     # 그래서 여기서는 비동기 버전인 AsyncSqliteSaver를 직접 만들어서 넘긴다.
+    auth.init_db()
+
     global _graph
     conn = await aiosqlite.connect(CHECKPOINT_DB_PATH)
     checkpointer = AsyncSqliteSaver(conn)
@@ -44,6 +47,56 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Multi-Agent RAG — AWS 서비스 선택/비용 최적화 어드바이저", lifespan=lifespan)
+
+
+def _require_user(authorization: Optional[str] = Header(None)) -> dict:
+    """Authorization: Bearer <token> 헤더에서 로그인 사용자를 뽑는다. 없거나 무효면 401."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
+    user = auth.get_user(authorization.removeprefix("Bearer "))
+    if user is None:
+        raise HTTPException(status_code=401, detail="세션이 만료됐거나 유효하지 않습니다. 다시 로그인해주세요.")
+    return user
+
+
+class SignupRequest(BaseModel):
+    username: str
+    password: str
+
+
+class AuthResponse(BaseModel):
+    token: str
+    username: str
+
+
+@app.post("/auth/signup", response_model=AuthResponse)
+def signup(request: SignupRequest):
+    try:
+        token = auth.signup(request.username, request.password)
+    except (auth.UsernameTakenError, auth.InvalidCredentialsError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return AuthResponse(token=token, username=request.username.strip())
+
+
+@app.post("/auth/login", response_model=AuthResponse)
+def login(request: SignupRequest):
+    try:
+        token = auth.login(request.username, request.password)
+    except auth.InvalidCredentialsError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    return AuthResponse(token=token, username=request.username.strip())
+
+
+@app.post("/auth/logout")
+def logout(authorization: Optional[str] = Header(None)):
+    if authorization and authorization.startswith("Bearer "):
+        auth.logout(authorization.removeprefix("Bearer "))
+    return {"status": "ok"}
+
+
+@app.get("/auth/me")
+def me(user: dict = Depends(_require_user)):
+    return user
 
 
 class QueryRequest(BaseModel):
@@ -64,11 +117,12 @@ def health():
 
 
 @app.post("/query", response_model=QueryResponse)
-def query(request: QueryRequest):
+def query(request: QueryRequest, user: dict = Depends(_require_user)):
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="question은 비어 있을 수 없습니다.")
 
     thread_id = request.thread_id or str(uuid.uuid4())
+    auth.record_thread(user["id"], thread_id)
     result = _get_graph().invoke(
         {"messages": [HumanMessage(content=request.question)]},
         config={"configurable": {"thread_id": thread_id}},
@@ -108,17 +162,36 @@ def _thread_messages(thread_id: str) -> list[dict]:
 
 
 @app.get("/threads/{thread_id}", response_model=ThreadHistory)
-def get_thread(thread_id: str):
+def get_thread(thread_id: str, user: dict = Depends(_require_user)):
     """특정 thread_id의 전체 대화 기록. 서랍에서 클릭해 다시 열 때 씀.
 
-    일부러 전체 thread_id를 나열하는 엔드포인트(GET /threads)를 두지 않았다 - 로그인 없는
-    구조라, 만약 그런 엔드포인트가 있으면 누구나 다른 사람의 질문 미리보기를 볼 수 있게 된다.
-    thread_id(랜덤 UUID)를 아는 사람만 그 대화를 열 수 있는 게 지금 구조의 유일한 방어선이라,
-    그 값은 각 클라이언트(Streamlit 세션)가 직접 기억해서 물어봐야 한다."""
+    로그인 기반으로 바뀌면서 소유권도 같이 확인한다 - user_threads에 (내 user_id, 이
+    thread_id) 조합이 없으면 그 thread_id를 알아도(추측해도) 못 열게 막는다. 로그인 전에는
+    thread_id(랜덤 UUID)를 아는 사람만 열 수 있다는 게 유일한 방어선이었는데, 지금은 거기에
+    "그리고 실제 소유자여야 한다"는 조건이 하나 더 생긴 것."""
+    if thread_id not in auth.list_user_thread_ids(user["id"]):
+        raise HTTPException(status_code=403, detail="이 대화에 접근할 권한이 없습니다.")
     messages = _thread_messages(thread_id)
     if not messages:
         raise HTTPException(status_code=404, detail="해당 thread_id의 대화를 찾을 수 없습니다.")
     return ThreadHistory(thread_id=thread_id, messages=[ThreadMessage(**m) for m in messages])
+
+
+class ThreadSummary(BaseModel):
+    thread_id: str
+    preview: str
+
+
+@app.get("/my-threads", response_model=list[ThreadSummary])
+def my_threads(user: dict = Depends(_require_user)):
+    """로그인한 사용자 본인이 만든 대화 목록만 (최근 순). 서랍 UI가 이걸 호출한다."""
+    summaries = []
+    for thread_id in auth.list_user_thread_ids(user["id"]):
+        messages = _thread_messages(thread_id)
+        first_user_msg = next((m["content"] for m in messages if m["role"] == "user"), "")
+        preview = first_user_msg[:40] + ("..." if len(first_user_msg) > 40 else "")
+        summaries.append(ThreadSummary(thread_id=thread_id, preview=preview or "(빈 대화)"))
+    return summaries
 
 
 def _chunk_text(chunk) -> str:
@@ -191,11 +264,12 @@ async def _stream_answer(question: str, thread_id: str):
 
 
 @app.post("/query/stream")
-async def query_stream(request: QueryRequest):
+async def query_stream(request: QueryRequest, user: dict = Depends(_require_user)):
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="question은 비어 있을 수 없습니다.")
 
     thread_id = request.thread_id or str(uuid.uuid4())
+    auth.record_thread(user["id"], thread_id)
     return StreamingResponse(
         _stream_answer(request.question, thread_id),
         media_type="text/event-stream",

@@ -10,3 +10,6 @@ ec2_price_cache.json
 checkpoints.sqlite
 checkpoints.sqlite-shm
 checkpoints.sqlite-wal
+users.sqlite
+users.sqlite-shm
+users.sqlite-wal

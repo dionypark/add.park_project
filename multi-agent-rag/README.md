@@ -35,7 +35,7 @@ START → supervisor(판단만, LLM) → (조건부 분기, 필요한 쪽만/둘
 | 서브그래프 활용 | ✅ retrieval_agent, cost_agent를 별도 컴파일된 그래프로 만들어 노드 함수 안에서 호출 |
 | 병렬 실행 | ✅ 검색+계산 둘 다 필요하면 `add_conditional_edges`가 리스트를 반환해 동시 실행(fan-out), `synthesizer`에서 fan-in |
 | FastAPI 배포 | ✅ `app.py` (`/query`, `thread_id`로 멀티턴) |
-| 멀티턴 | ✅ `SqliteSaver`/`AsyncSqliteSaver`(영속 저장, 서랍 UI) |
+| 멀티턴 | ✅ `SqliteSaver`/`AsyncSqliteSaver`(영속 저장) + 계정(회원가입/로그인) 기반 서랍 UI |
 | 스트리밍 | ✅ `/query/stream` (SSE, 최종 답변만 토큰 단위로 흘려보냄) |
 
 
@@ -44,7 +44,7 @@ START → supervisor(판단만, LLM) → (조건부 분기, 필요한 쪽만/둘
 ```bash
 cd multi-agent-rag
 source .venv/bin/activate
-pip install -r requirements.txt    # ijson 추가됨 (EC2 요금표 스트리밍 파싱용)
+pip install -r requirements.txt    # ijson(EC2 요금표 파싱), bcrypt/extra-streamlit-components(회원가입·로그인)
 cp .env.example .env    # ANTHROPIC_API_KEY, LANGSMITH_API_KEY 입력 필요
 python build_vectordb.py
 python refresh_ec2_prices.py       # EC2 요금 캐시 최초 생성 (선택, 없으면 첫 EC2 계산 때 자동 생성)
@@ -128,7 +128,8 @@ streamlit run streamlit_app.py     # 채팅 UI (터미널 2)
 1. `sqlite3.connect()`로 만든 파일 경로에 파일이 없는 상태에서 Docker 볼륨 마운트(`-v host:container`)를
    하면, Docker가 그 경로를 **자동으로 디렉토리로 생성**해버린다 (파일인지 폴더인지 모르니까). 그러면
    컨테이너 안에서 `sqlite3.connect()`가 "unable to open database file" 에러를 냄. **해결**: 마운트 전에
-   호스트에 `touch checkpoints.sqlite`로 빈 파일을 미리 만들어둬야 함.
+   호스트에 `touch checkpoints.sqlite users.sqlite`로 빈 파일을 미리 만들어둬야 함(회원 DB인
+   `users.sqlite`도 08-07에 추가되면서 마찬가지로 볼륨 마운트 대상이 됨).
 2. `langgraph-checkpoint-sqlite`(2.0.11)가 내부적으로 `aiosqlite.Connection.is_alive()`를 호출하는데,
    최신 `aiosqlite`(0.22.1)에서 이 메서드가 없어져서 `AttributeError` 발생. **해결**: `aiosqlite==0.20.0`으로
    버전 고정.
@@ -142,23 +143,41 @@ streamlit run streamlit_app.py     # 채팅 UI (터미널 2)
    또한 캐시가 없거나 오래된 상태에서 사용자의 첫 계산 요청이 480MB 다운로드를 떠안지 않도록,
    `app.py`의 `lifespan`에서 서버 기동 시점에 `pricing.fetch_ec2_prices()`를 한 번 호출해 미리 데워둔다.
 
-### 서랍 UI 구현 — 그리고 뒤늦게 발견한 프라이버시 문제
+### 서랍 UI — 3단계로 진화한 과정
 
-- `app.py`에 `GET /threads/{thread_id}`(특정 대화의 전체 메시지) 엔드포인트, `streamlit_app.py` 사이드바에
-  그 대화로 재진입하는 버튼을 추가.
-- 회원가입/로그인은 없음 — `thread_id`가 랜덤 UUID라 그 값을 아는 사람만 그 대화에 접근 가능한 구조.
-- **초기 설계의 문제(08-07 발견 및 수정)**: 처음엔 `GET /threads`로 DB에 있는 **모든** `thread_id`를
-  한꺼번에 나열해서 사이드바 목록을 채웠다. 로컬 1인 테스트 땐 문제가 안 보였는데, 배포해서 여러 명이
-  같은 서버에 접속하는 상황을 가정하면 — A가 질문 몇 개를 하고 나가도, 그다음 접속한 B의 사이드바에
-  A의 질문 미리보기가 그대로 노출되는 구조였다(로그인이 없으니 "내 것만 보여주기"라는 개념 자체가
-  없었던 것). **해결**: `GET /threads`(전체 나열) 엔드포인트를 아예 삭제하고, 대신 각 브라우저 세션이
-  자기가 만든 `thread_id`만 `st.session_state.my_thread_ids`에 기억해서 그 목록만 서버에 물어보도록
-  변경. 서버 DB(`checkpoints.sqlite`)엔 여전히 모든 사용자의 대화가 다 저장되지만(의도된 동작), "누가
-  봐도 되는 thread_id 목록"을 서버가 통째로 내어주지 않게 됨. 트레이드오프: 사이드바 목록 자체는 이제
-  브라우저 새로고침하면 초기화된다(그 대화 내용 자체는 thread_id만 알면 여전히 열람 가능).
+1. **1차 (thread_id만)**: `app.py`에 `GET /threads/{thread_id}` 추가, 회원가입/로그인 없이 `thread_id`
+   (랜덤 UUID)를 아는 사람만 그 대화에 접근 가능한 구조. 사이드바 목록은 `GET /threads`로 DB의
+   **모든** thread_id를 통째로 나열해서 채웠음.
+2. **2차 (08-07, 프라이버시 버그 수정)**: 1차 구조는 여러 명이 같은 서버에 접속하면 A의 질문 미리보기가
+   B의 사이드바에도 그대로 노출되는 문제가 있었음(로그인이 없으니 "내 것만 보여주기"라는 개념 자체가
+   없었던 것). `GET /threads`(전체 나열)를 삭제하고, 각 브라우저 세션이 자기가 만든 thread_id만
+   `st.session_state`에 기억해서 그 목록만 물어보도록 임시 조치. 단점: 새로고침하면 목록이 초기화됨.
+3. **3차 (08-07, 진짜 회원가입/로그인으로 교체 — 파일럿 테스트 대비)**: 세션 기반은 새로고침/기기 변경 시
+   목록이 끊기는 한계가 있어서, 계정 기반으로 다시 바꿈. 아래 "회원가입/로그인" 절 참고.
 
-**Docker 배포 시 주의**: `checkpoints.sqlite`도 `vectordb/`처럼 볼륨 마운트를 안 하면 컨테이너 재시작 때
-같이 날아간다 (아래 `docker-compose.yml` 참고).
+### 회원가입/로그인 (`auth.py`)
+
+- 새 모듈 `auth.py`가 `users.sqlite`(`users`/`sessions`/`user_threads` 3개 테이블)로 계정을 관리한다.
+  비밀번호는 평문 저장 없이 `bcrypt`로 해싱, 로그인하면 랜덤 세션 토큰(`secrets.token_urlsafe`)을 발급한다
+  (thread_id와 같은 발상: 토큰 자체가 "이 사람이 로그인했다"는 증거).
+- `app.py`: `POST /auth/signup`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` 추가.
+  `/query`, `/query/stream`, `/threads/{thread_id}`, `GET /my-threads`는 이제 전부
+  `Authorization: Bearer <토큰>` 헤더 없으면 401. `user_threads` 테이블이 "이 user_id가 이
+  thread_id를 만들었다"를 기록해서, `/threads/{thread_id}`는 **소유자 본인이 맞는지도** 검사한다
+  (403) — thread_id를 안다고 무조건 열리던 1차 구조보다 한 단계 더 안전해짐.
+- `streamlit_app.py`: 로그인 안 하면 로그인/회원가입 폼만 보여주고 나머지 UI는 `st.stop()`으로 막는다.
+  로그인하면 세션 토큰을 브라우저 **쿠키**(`extra_streamlit_components.CookieManager`)에 저장해서,
+  새로고침하거나 다른 기기로 접속해도(같은 계정으로 로그인만 하면) 대화 목록이 그대로 이어진다 —
+  세션 기반이던 2차의 한계를 해결. 사이드바 "지난 대화"는 이제 `GET /my-threads`(로그인한 사용자
+  본인 것만 서버가 필터링해서 리턴)를 호출한다.
+- **겪은 버그**: `CookieManager.set()`으로 쿠키를 심자마자 바로 `st.rerun()`을 부르면, 브라우저 쪽
+  컴포넌트(iframe)가 실제로 `document.cookie`를 쓰기 전에 화면이 다시 그려져서 쿠키가 안 써진 것처럼
+  보이는 경쟁 조건이 있었다. **해결**: `set()`/`delete()` 직후 `time.sleep(0.5)`로 브라우저가 쿠키를
+  실제로 쓸 시간을 준 다음 rerun. 또한 쿠키 읽기(`get_all()`)를 매 실행마다 새로 호출하지 않고,
+  `CookieManager` 생성자가 이미 만들어둔 결과(`.get()`)를 재사용하도록 정리해 컴포넌트 호출 횟수를 줄임.
+
+**Docker 배포 시 주의**: `checkpoints.sqlite`, `users.sqlite` 둘 다 `vectordb/`처럼 볼륨 마운트를 안 하면
+컨테이너 재시작 때 같이 날아간다 (아래 `docker-compose.yml` 참고).
 
 ## FastAPI + Streamlit 같이 배포 (`docker-compose.yml`)
 
@@ -201,6 +220,12 @@ Streamlit 헤더/배경에 하늘색 그라데이션(`#CFE9F7` → `#FBFDFE`)과
 raw HTML로 넣는데, 이미지를 base64 data URI로 인코딩해 `<img src="data:image/png;base64,...">`로 넣는다
 — raw `<svg>`/`<img>` 태그를 그대로 markdown에 넣으면 Streamlit의 markdown 파서가 내부 태그를 밖으로
 새어나가게 만드는 버그가 있어서(중복 텍스트 렌더링), base64 인코딩으로 우회함.
+
+**모바일 반응형(08-07)**: `@media (max-width: 480px)` 미디어 쿼리로 좁은 화면에서 로고 크기(240px→170px)와
+구름 도형 크기를 줄여 화면을 덜 차지하게 했다. Streamlit이 기본으로 뷰포트 메타 태그와 사이드바의
+모바일 오버레이 동작(좁은 화면에서 사이드바가 전체화면 드로어로 바뀜)을 제공해서, 레이아웃 자체를 다시
+짤 필요 없이 폰트/이미지 크기 조정만으로 충분했다. 실제 iPhone 크기(375px 너비)에서 로그인 폼/채팅
+화면 모두 스크린샷으로 확인함.
 
 ## 기능 추가 계획
 
