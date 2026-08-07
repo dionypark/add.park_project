@@ -32,3 +32,21 @@ jobs:
       - name: 문법/임포트 오류 체크
         working-directory: multi-agent-rag
         run: python -m py_compile *.py
+
+  deploy:
+    needs: build-check
+    runs-on: ubuntu-latest
+    # PR에서는 배포 안 함 - main에 실제로 push(머지)됐을 때만 EC2에 반영한다.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: EC2에 SSH로 접속해서 최신 코드로 재배포
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd add.park_project/multi-agent-rag
+            git pull
+            docker compose up --build -d

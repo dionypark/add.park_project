@@ -227,6 +227,32 @@ docker compose up --build
 브라우저로 `http://localhost:8501` 접속하면 진짜 채팅 화면이 뜬다 (`http://EC2주소:8000`만 열면 API 문서
 화면만 보여서 데모용으론 부족함).
 
+### EC2 수동 배포 중 겪은 버그 2개 (08-07)
+
+1. **`sentence-transformers`가 딸려오는 `torch`가 기본으로 GPU(CUDA) 빌드** — 엔비디아 GPU 라이브러리가
+   수백MB~600MB짜리로 여러 개 딸려와서(`nvidia-cublas-cu12` 594MB 등) 총 몇 GB를 차지함. GPU가 없는
+   t3.small(EBS 20GiB)에서 빌드하다가 `OSError: [Errno 28] No space left on device`로 실패함.
+   **해결**: `Dockerfile`에서 `requirements.txt` 설치 전에 CPU 전용 torch를
+   `--index-url https://download.pytorch.org/whl/cpu`로 먼저 설치해두면, 이후 `sentence-transformers`가
+   torch를 요구해도 "이미 설치됨"으로 보고 GPU 버전을 안 받아옴.
+2. **다크모드 기기에서 로그인 폼 글씨가 거의 안 보임** — 기기가 다크모드면 Streamlit 기본 위젯(입력창,
+   탭 텍스트)만 다크 테마로 바뀌는데, 커스텀 배경(하늘색 그라데이션)은 그대로라 대비가 깨져서 흰 글씨가
+   흰 배경에 겹쳐 보임. 실제 아이폰 사파리(다크모드)에서 재현 확인. **해결**:
+   `.streamlit/config.toml`에 `[theme] base = "light"`로 고정해서 기기 설정과 무관하게 항상 같은 밝은
+   톤으로 나오게 함.
+
+## CD — GitHub Actions로 자동 배포 (`ci.yml`)
+
+`build-check`(기존 CI) 뒤에 `deploy` job을 추가했다. `main`에 실제로 push됐을 때만
+(`if: github.event_name == 'push' && github.ref == 'refs/heads/main'`, PR 상태에선 안 돌아감)
+`appleboy/ssh-action`으로 EC2에 SSH 접속해서 `git pull` + `docker compose up --build -d`를 실행한다.
+Docker Hub 같은 이미지 저장소는 안 씀 — EC2가 최신 소스코드를 직접 받아서 그 자리에서 이미지를 새로
+빌드하는 구조(수동 배포 때와 완전히 같은 방식, 사람이 하던 걸 GitHub Actions가 대신 함).
+
+접속 정보(`EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`)는 코드에 안 넣고 **GitHub 저장소 Settings → Secrets
+and variables → Actions**에 등록해서 워크플로 안에서 `${{ secrets.XXX }}`로만 참조한다 — pem 키 내용이
+그대로 코드에 커밋되는 걸 막기 위함.
+
 ## 서비스 브랜딩 — "가늠" (Ganeum)
 
 서비스명을 "가늠"(estimate/gauge, "얼마나 필요한지 가늠하다")으로 정했다. 로고는 구름(AWS=클라우드) 안에
