@@ -33,6 +33,20 @@ URLS = [
     # "AWS 서비스/비용 선택" 질문이라 도메인 확장이 아니라 세부 보강임.
     "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volume-types.html",
     "https://aws.amazon.com/ebs/pricing/",
+    # 08-07: "AWS 기반 비용산정/옵션선택" 도메인 안에서 자주 나오는 핵심 서비스 커버리지 확장.
+    # 개념만 있는 "Welcome" 페이지 말고, 실제 구성요소/설정 옵션이 담긴 페이지 위주로 골랐다.
+    "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+    "https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html",
+    "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Welcome.html",
+    "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html",
+    "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReadWriteCapacityMode.html",
+    "https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html",
+    "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html",
+    "https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/Welcome.html",
+    "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html",
+    "https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html",
 ]
 
 
