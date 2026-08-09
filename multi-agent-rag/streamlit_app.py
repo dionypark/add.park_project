@@ -237,7 +237,7 @@ if question:
                 payload["thread_id"] = st.session_state.thread_id
 
             with requests.post(
-                f"{API_URL}/query/stream", json=payload, headers=_auth_headers(), stream=True, timeout=120
+                f"{API_URL}/query/stream", json=payload, headers=_auth_headers(), stream=True, timeout=300
             ) as res:
                 res.raise_for_status()
                 current_event = None

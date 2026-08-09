@@ -13,6 +13,7 @@ from typing import Annotated
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.errors import GraphRecursionError
 from langgraph.graph import START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -61,9 +62,11 @@ def _last_text(messages) -> str:
 # ---------------------------------------------------------------------------
 
 RETRIEVAL_PROMPT = (
-    "당신은 AWS/서버 운영 어드바이저입니다. search_aws_docs 도구로 질문과 관련된 근거를 먼저 찾아보세요 "
-    "(필요하면 검색어를 바꿔가며 여러 번 검색). 문서에서 찾은 내용은 반드시 출처(파일명-섹션)를 밝히고 "
-    "인용하세요.\n"
+    "당신은 AWS/서버 운영 어드바이저입니다. search_aws_docs 도구로 질문과 관련된 근거를 먼저 찾아보세요. "
+    "**검색은 최대 2번까지만 시도하세요** (검색어를 한 번 바꿔서 재시도하는 것까지만 - 그 이상 계속 "
+    "검색어를 바꿔가며 재시도하지 마세요). 2번 검색해도 명확한 근거를 못 찾으면 검색을 그만두고, 아래 "
+    "'일반 지식으로 보완' 지침에 따라 답변을 마무리하세요 - 완벽한 근거를 찾을 때까지 검색을 반복하지 "
+    "않는 것이 중요합니다. 문서에서 찾은 내용은 반드시 출처(파일명-섹션)를 밝히고 인용하세요.\n"
     "검색 문서에 없는 내용이라도 질문에 답할 수 있는 지식이 있으면(예: 특정 AWS 서비스가 뭔지, S3/EBS "
     "같은 서비스 개념, Docker/systemd/swap 메모리 설정 등 서버 운영/DevOps 지식) 알고 있는 대로 답하되, "
     "그 부분은 '(문서 근거 없음, 일반 지식)'이라고 명확히 표시해서 검색 결과와 구분하세요. "
@@ -99,8 +102,9 @@ def build_retrieval_subgraph():
 COST_PROMPT = (
     "당신은 AWS 요금 계산 전문가입니다. 질문에서 서비스명과 사용량(요청 수, 실행시간, 메모리, "
     "인스턴스 타입 등)을 파악해서 calculate_cost 도구로 예상 요금을 계산하세요. "
-    "사용량이 명시 안 됐으면 search_aws_docs로 참고할 만한 기준을 찾아보거나, "
-    "합리적인 가정을 명시하고 계산하세요. 계산 결과와 그 가정을 답변에 포함하세요.\n"
+    "사용량이 명시 안 됐으면 search_aws_docs로 참고할 만한 기준을 **최대 2번까지만** 찾아보고, 그래도 "
+    "안 나오면 검색을 그만두고 합리적인 가정을 명시해서 계산하세요 (완벽한 근거를 찾을 때까지 검색을 "
+    "반복하지 마세요). 계산 결과와 그 가정을 답변에 포함하세요.\n"
     "질문이 '이런 서비스를 만들려는데 뭘 써야 하고 얼마 드는지'처럼 프로젝트 전체를 설명하며 여러 "
     "서비스가 필요한 경우, 구성요소별로 calculate_cost를 각각 반복 호출해서 항목별 요금을 구하고 "
     "마지막에 합계를 제시하세요. calculate_cost는 lambda/ec2/fargate만 지원합니다 - S3, RDS, "
@@ -144,16 +148,30 @@ def _get_cost_graph():
     return _cost_graph
 
 
+# 프롬프트로 "검색 최대 2번"이라고 지시해도 모델이 안 지킬 때를 대비한 하드 제한.
+# 서브그래프는 agent->tools->agent->tools->... 순으로 도는데, 이 값은 "노드 실행 횟수"라서
+# agent 3번 + tools 2번 정도(검색 2번 + 최종 답변 1번)면 넉넉하고, 그 이상이면 완전히 막힌 것으로 보고 끊는다.
+_SUBGRAPH_RECURSION_LIMIT = 8
+
+
 def retrieval_agent_node(state: State, config):
     # config를 그대로 넘겨야 서브그래프 내부 LLM 호출의 스트리밍 이벤트가
-    # 바깥쪽 그래프의 astream_events로 전파된다.
-    result = _get_retrieval_graph().invoke({"messages": state["messages"]}, config)
-    return {"search_result": _last_text(result["messages"])}
+    # 바깥쪽 그래프의 astream_events로 전파된다. recursion_limit만 낮춰서 얹는다.
+    sub_config = {**config, "recursion_limit": _SUBGRAPH_RECURSION_LIMIT}
+    try:
+        result = _get_retrieval_graph().invoke({"messages": state["messages"]}, sub_config)
+        return {"search_result": _last_text(result["messages"])}
+    except GraphRecursionError:
+        return {"search_result": "검색을 여러 번 시도했지만 명확한 근거를 찾지 못했어요. 질문을 조금 더 구체적으로 해주시면 도움이 될 것 같아요."}
 
 
 def cost_agent_node(state: State, config):
-    result = _get_cost_graph().invoke({"messages": state["messages"]}, config)
-    return {"cost_result": _last_text(result["messages"])}
+    sub_config = {**config, "recursion_limit": _SUBGRAPH_RECURSION_LIMIT}
+    try:
+        result = _get_cost_graph().invoke({"messages": state["messages"]}, sub_config)
+        return {"cost_result": _last_text(result["messages"])}
+    except GraphRecursionError:
+        return {"cost_result": "계산에 필요한 근거를 찾는 데 반복 검색이 너무 길어져서 중단했어요. 인스턴스 타입이나 사용량을 좀 더 구체적으로 알려주시면 다시 계산해볼게요."}
 
 
 # ---------------------------------------------------------------------------
