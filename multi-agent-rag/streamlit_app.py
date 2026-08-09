@@ -77,14 +77,20 @@ st.markdown(
         position: relative; z-index: 1; line-height: 1.6; font-weight: 500;
     }
 
-    /* 로그인 후(채팅) 화면에서 오른쪽 위에 작게 붙는 로고 - 큰 헤더/태그라인 대신 이것만 씀 */
-    .ganeum-header-mini {
-        display: flex; align-items: center; justify-content: flex-end; gap: 6px;
-        margin: -8px 0 12px; position: relative; z-index: 1;
+    /* 로그인 후(채팅) 화면 - 사이드바 맨 아래에 고정으로 박아두는 로고(아이콘 위, "가늠" 아래) */
+    .ganeum-sidebar-logo {
+        position: sticky; bottom: 0;
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
+        margin-top: 32px; padding: 18px 0 14px;
+        border-top: 1px solid rgba(91, 112, 137, 0.15);
+        background: rgba(255, 255, 255, 0.75);
     }
-    .ganeum-header-mini img { width: 30px; height: auto; }
-    .ganeum-header-mini span {
-        font-family: 'Jua', sans-serif; font-size: 17px; color: #3F5266;
+    .ganeum-sidebar-logo img {
+        width: 64px; height: auto;
+        filter: drop-shadow(0 4px 10px rgba(63,82,102,0.18));
+    }
+    .ganeum-sidebar-logo span {
+        font-family: 'Jua', sans-serif; font-size: 26px; color: #3F5266;
     }
 
     /* 채팅 말풍선 - 기본 Streamlit 스타일을 카드형으로 부드럽게 */
@@ -150,10 +156,10 @@ def _render_full_header():
     )
 
 
-def _render_mini_header():
-    """로그인 후(채팅) 화면에서 쓰는, 오른쪽 위에 작게 붙는 로고."""
+def _render_sidebar_logo():
+    """로그인 후(채팅) 화면 - 사이드바 맨 아래에 아이콘+"가늠" 이름을 세로로 박아둔다."""
     st.markdown(
-        f'<div class="ganeum-header-mini">'
+        f'<div class="ganeum-sidebar-logo">'
         f'<img src="data:image/png;base64,{_logo_icon_b64}" alt="가늠 로고"/>'
         f'<span>가늠</span>'
         f'</div>',
@@ -247,8 +253,6 @@ if "token" not in st.session_state:
     _login_or_signup_view()
     st.stop()
 
-_render_mini_header()
-
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "thread_id" not in st.session_state:
@@ -321,6 +325,8 @@ with st.sidebar:
                     st.session_state.thread_id = None
                     st.session_state.messages = []
                 st.rerun()
+
+    _render_sidebar_logo()
 
 _AVATARS = {"user": "🙂", "assistant": "☁️"}
 
