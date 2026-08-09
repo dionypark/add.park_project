@@ -167,3 +167,19 @@ def list_user_thread_ids(user_id: int) -> list[str]:
     finally:
         conn.close()
     return [r[0] for r in rows]
+
+
+def delete_thread(user_id: int, thread_id: str) -> bool:
+    """서랍 목록/소유권 기록에서만 지운다 (checkpoints.sqlite의 실제 대화 내용까지 지우진
+    않음 - 그건 LangGraph 체크포인터 내부 구조라 건드리려면 별도 작업이 필요하고, 사용자
+    입장에서는 "목록에서 사라짐"이 곧 삭제로 충분하다). 삭제됐으면 True, 애초에 본인 것이
+    아니었으면(또는 없었으면) False."""
+    conn = _connect()
+    try:
+        cur = conn.execute(
+            "DELETE FROM user_threads WHERE user_id = ? AND thread_id = ?", (user_id, thread_id)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()

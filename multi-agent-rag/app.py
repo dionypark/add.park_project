@@ -194,6 +194,14 @@ def my_threads(user: dict = Depends(_require_user)):
     return summaries
 
 
+@app.delete("/threads/{thread_id}")
+def delete_thread(thread_id: str, user: dict = Depends(_require_user)):
+    """서랍 목록에서 삭제. 본인 것이 아니면(또는 이미 없으면) 404."""
+    if not auth.delete_thread(user["id"], thread_id):
+        raise HTTPException(status_code=404, detail="해당 대화를 찾을 수 없습니다.")
+    return {"status": "ok"}
+
+
 def _chunk_text(chunk) -> str:
     """AIMessageChunk.content가 문자열/블록 리스트 둘 다일 수 있어 텍스트만 뽑아낸다."""
     content = chunk.content

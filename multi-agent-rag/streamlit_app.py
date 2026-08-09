@@ -16,13 +16,16 @@ import requests
 import streamlit as st
 
 API_URL = os.environ.get("API_URL", "http://127.0.0.1:8000")
-_LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "logo.png")
+# 원본 logo.png는 아이콘+"가늠"+"Ganeum" 글자가 세로로 쌓여있는 이미지라, 헤더에 그대로 쓰면
+# 세로로 길게 늘어진다. logo-icon.png는 그중 아이콘 부분만 잘라둔 것 - 이걸 텍스트 "가늠"과
+# 나란히(가로) 배치해서 헤더를 컴팩트하게 만든다.
+_LOGO_ICON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "logo-icon.png")
 _COOKIE_NAME = "ganeum_token"
 
 st.set_page_config(page_title="가늠 — AWS 어드바이저", page_icon="☁️")
 
-with open(_LOGO_PATH, "rb") as f:
-    _logo_b64 = base64.b64encode(f.read()).decode()
+with open(_LOGO_ICON_PATH, "rb") as f:
+    _logo_icon_b64 = base64.b64encode(f.read()).decode()
 
 st.markdown(
     """
@@ -40,19 +43,34 @@ st.markdown(
         font-family: 'Jua', sans-serif !important;
     }
 
-    /* 배경: 하늘색 그라데이션 + 은은한 구름 모양 (banapresso 참고 - 밝고 화사한 톤) */
+    /* 배경: 하늘색 -> 연초록으로 은은하게 넘어가는 그라데이션 + 구름 모양 */
     .stApp {
-        background: linear-gradient(180deg, #CFE9F7 0%, #EAF5FB 45%, #FBFDFE 100%);
+        background: linear-gradient(160deg, #CFE9F7 0%, #DCF2E8 50%, #FBFDFE 100%);
     }
+
+    @keyframes ganeum-float {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-6px) scale(1.15); }
+    }
+    .ganeum-loading {
+        display: inline-flex; align-items: center; gap: 8px; color: #5B7089;
+    }
+    .ganeum-loading .cloud { display: inline-block; font-size: 20px; animation: ganeum-float 1.1s ease-in-out infinite; }
     .ganeum-cloud {
         position: fixed; pointer-events: none; z-index: 0;
         background: #ffffff; border-radius: 50%; opacity: 0.5;
         filter: blur(2px);
     }
 
-    .ganeum-header { display: flex; justify-content: center; margin: 8px 0 -6px; position: relative; z-index: 1; }
-    .ganeum-header img { width: 220px; max-width: 65%; height: auto;
-        filter: drop-shadow(0 6px 14px rgba(63,82,102,0.15)); }
+    .ganeum-header {
+        display: flex; align-items: center; justify-content: center; gap: 14px;
+        margin: 20px 0 4px; position: relative; z-index: 1;
+    }
+    .ganeum-header img { width: 74px; height: auto;
+        filter: drop-shadow(0 4px 10px rgba(63,82,102,0.18)); }
+    .ganeum-header .ganeum-name {
+        font-family: 'Jua', sans-serif; font-size: 44px; color: #3F5266; line-height: 1;
+    }
 
     .ganeum-tagline {
         text-align: center; color: #5B7089; font-size: 15px; margin: 6px 0 28px;
@@ -93,7 +111,8 @@ st.markdown(
 
     /* 모바일(좁은 화면)에서 로고/구름/여백을 줄여서 화면을 덜 차지하게 함 */
     @media (max-width: 480px) {
-        .ganeum-header img { width: 160px; }
+        .ganeum-header img { width: 52px; }
+        .ganeum-header .ganeum-name { font-size: 32px; }
         .ganeum-cloud { transform: scale(0.6); }
         div[data-testid="stChatMessage"] { font-size: 15px; }
     }
@@ -105,9 +124,12 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-# 로고 PNG(투명 배경) 안에 "가늠"/"Ganeum" 워드마크가 이미 들어있어서 텍스트를 따로 안 붙인다.
+# 아이콘(그림)과 "가늠"(글자)을 가로로 나란히 배치 - 세로로 늘어지지 않게.
 st.markdown(
-    f'<div class="ganeum-header"><img src="data:image/png;base64,{_logo_b64}" alt="가늠 로고"/></div>',
+    f'<div class="ganeum-header">'
+    f'<img src="data:image/png;base64,{_logo_icon_b64}" alt="가늠 로고"/>'
+    f'<span class="ganeum-name">가늠</span>'
+    f'</div>',
     unsafe_allow_html=True,
 )
 st.markdown(
@@ -235,9 +257,7 @@ with st.sidebar:
             st.session_state.pop(key, None)
         st.rerun()
 
-    st.divider()
-    st.caption(f"대화방 번호: {st.session_state.thread_id or '(아직 없음, 첫 질문 후 생성됨)'}")
-    if st.button("새 대화 시작", use_container_width=True):
+    if st.button("＋ 새 대화 시작", use_container_width=True):
         st.session_state.messages = []
         st.session_state.thread_id = None
         st.rerun()
@@ -250,18 +270,38 @@ with st.sidebar:
     for t in my_threads:
         is_current = t["thread_id"] == st.session_state.thread_id
         label = ("📍 " if is_current else "") + t["preview"]
-        if st.button(label, key=f"thread-{t['thread_id']}", use_container_width=True):
-            try:
-                history = requests.get(
-                    f"{API_URL}/threads/{t['thread_id']}", headers=_auth_headers(), timeout=10
-                ).json()
-                st.session_state.thread_id = history["thread_id"]
-                st.session_state.messages = [
-                    {"role": m["role"], "content": m["content"]} for m in history["messages"]
-                ]
+        col_open, col_del = st.columns([0.82, 0.18])
+        with col_open:
+            if st.button(label, key=f"thread-{t['thread_id']}", use_container_width=True):
+                try:
+                    res = requests.get(
+                        f"{API_URL}/threads/{t['thread_id']}", headers=_auth_headers(), timeout=10
+                    )
+                    if res.status_code != 200:
+                        # 응답이 200이 아니면 {"thread_id": ...} 모양이 아니라 {"detail": "..."} 형태라
+                        # 아래에서 바로 history["thread_id"]를 쓰면 KeyError가 나서 화면이 죽는다.
+                        # 여기서 먼저 걸러서 사용자한테 보이는 에러 메시지로만 처리한다.
+                        detail = res.json().get("detail", f"HTTP {res.status_code}") if res.content else f"HTTP {res.status_code}"
+                        st.error(f"대화를 불러오지 못했습니다: {detail}")
+                    else:
+                        history = res.json()
+                        st.session_state.thread_id = history["thread_id"]
+                        st.session_state.messages = [
+                            {"role": m["role"], "content": m["content"]} for m in history["messages"]
+                        ]
+                        st.rerun()
+                except requests.exceptions.RequestException as e:
+                    st.error(f"대화를 불러오지 못했습니다: {e}")
+        with col_del:
+            if st.button("🗑️", key=f"delete-{t['thread_id']}", use_container_width=True):
+                try:
+                    requests.delete(f"{API_URL}/threads/{t['thread_id']}", headers=_auth_headers(), timeout=10)
+                except requests.exceptions.RequestException:
+                    pass
+                if is_current:
+                    st.session_state.thread_id = None
+                    st.session_state.messages = []
                 st.rerun()
-            except requests.exceptions.RequestException as e:
-                st.error(f"대화를 불러오지 못했습니다: {e}")
 
 _AVATARS = {"user": "🙂", "assistant": "☁️"}
 
@@ -269,7 +309,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=_AVATARS.get(msg["role"])):
         st.write(msg["content"])
 
-question = st.chat_input("예: Lambda로 월 100만 건 요청, 200ms, 512MB면 요금이 얼마나 나와?")
+question = st.chat_input("무엇이 궁금하신가요?")
 if question:
     st.session_state.messages.append({"role": "user", "content": question})
     with st.chat_message("user", avatar=_AVATARS["user"]):
@@ -277,7 +317,10 @@ if question:
 
     with st.chat_message("assistant", avatar=_AVATARS["assistant"]):
         placeholder = st.empty()
-        placeholder.markdown("_생각 중..._")
+        placeholder.markdown(
+            '<div class="ganeum-loading"><span class="cloud">☁️</span> 가늠하는 중...</div>',
+            unsafe_allow_html=True,
+        )
         answer = ""
         needs_search = False
         needs_calculation = False
