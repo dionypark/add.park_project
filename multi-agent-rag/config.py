@@ -25,4 +25,6 @@ GENERATION_MODEL = "claude-sonnet-5"
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 100
 
-TOP_K = 4
+# 문서가 25개(청크 700개+)로 늘어난 뒤로는 4개는 너무 적어서, 여러 주제가 섞인 질문(예:
+# "Spring Boot+PostgreSQL 구성 추천")에서 일부 관련 청크를 놓치는 경우가 있었다. 6으로 늘림.
+TOP_K = 6

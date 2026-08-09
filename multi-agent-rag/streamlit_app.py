@@ -27,8 +27,18 @@ with open(_LOGO_PATH, "rb") as f:
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Jua&display=swap');
-    html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+    @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+    /* Streamlit 내부 아이콘은 전용 아이콘 폰트(리게이처 텍스트)를 쓰는데, 이걸 무시하고 전역
+       폰트를 강제하면 아이콘이 "keyboard_double_arrow_right" 같은 글자 그대로 깨져 보인다.
+       그래서 span/div는 건드리지 않고, 실제 텍스트 요소만 지정한다.
+       본문은 Pretendard(가독성), 로고 옆 태그라인/타이틀류는 Jua(동글동글한 느낌)로 구분. */
+    html, body, .stMarkdown, p, h1, h2, h3, label, textarea, input, button {
+        font-family: 'Pretendard', -apple-system, sans-serif;
+    }
+    .ganeum-tagline, .ganeum-round {
+        font-family: 'Jua', sans-serif !important;
+    }
 
     /* 배경: 하늘색 그라데이션 + 은은한 구름 모양 (banapresso 참고 - 밝고 화사한 톤) */
     .stApp {
@@ -36,16 +46,54 @@ st.markdown(
     }
     .ganeum-cloud {
         position: fixed; pointer-events: none; z-index: 0;
-        background: #ffffff; border-radius: 50%; opacity: 0.55;
-        filter: blur(1px);
+        background: #ffffff; border-radius: 50%; opacity: 0.5;
+        filter: blur(2px);
     }
 
-    .ganeum-header { display: flex; justify-content: center; margin: 4px 0 -10px; position: relative; z-index: 1; }
-    .ganeum-header img { width: 240px; max-width: 70%; height: auto; }
+    .ganeum-header { display: flex; justify-content: center; margin: 8px 0 -6px; position: relative; z-index: 1; }
+    .ganeum-header img { width: 220px; max-width: 65%; height: auto;
+        filter: drop-shadow(0 6px 14px rgba(63,82,102,0.15)); }
+
+    .ganeum-tagline {
+        text-align: center; color: #5B7089; font-size: 15px; margin: 6px 0 28px;
+        position: relative; z-index: 1; line-height: 1.6; font-weight: 500;
+    }
+
+    /* 채팅 말풍선 - 기본 Streamlit 스타일을 카드형으로 부드럽게 */
+    div[data-testid="stChatMessage"] {
+        background: rgba(255, 255, 255, 0.72);
+        border-radius: 18px;
+        padding: 4px 6px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 10px rgba(63, 82, 102, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+
+    /* 버튼 - 둥글고 부드러운 톤 */
+    .stButton > button {
+        border-radius: 12px !important;
+        border: 1px solid rgba(91, 112, 137, 0.18) !important;
+        transition: all 0.15s ease;
+    }
+    .stButton > button:hover {
+        border-color: #5B7089 !important;
+        box-shadow: 0 3px 10px rgba(63, 82, 102, 0.15);
+        transform: translateY(-1px);
+    }
+
+    /* 채팅 입력창 */
+    div[data-testid="stChatInput"] {
+        border-radius: 16px;
+    }
+
+    /* 사이드바 배경도 톤 맞추기 */
+    section[data-testid="stSidebar"] {
+        background: rgba(255, 255, 255, 0.55);
+    }
 
     /* 모바일(좁은 화면)에서 로고/구름/여백을 줄여서 화면을 덜 차지하게 함 */
     @media (max-width: 480px) {
-        .ganeum-header img { width: 170px; }
+        .ganeum-header img { width: 160px; }
         .ganeum-cloud { transform: scale(0.6); }
         div[data-testid="stChatMessage"] { font-size: 15px; }
     }
@@ -63,8 +111,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    "<p style='text-align:center; color:#5B7089; font-size:15px; margin-top:4px; position:relative; z-index:1;'>"
-    "AWS, 얼마나 필요한지 가늠해드립니다 · 멀티 에이전트(supervisor + retrieval + cost) + 멀티턴</p>",
+    "<p class='ganeum-tagline'>AWS, 얼마나 필요한지 가늠해드립니다<br>"
+    "무엇을 써야 할지, 어떤 게 더 나을지 비교하고 — 예상 비용까지 함께 가늠해드려요</p>",
     unsafe_allow_html=True,
 )
 
@@ -215,17 +263,19 @@ with st.sidebar:
             except requests.exceptions.RequestException as e:
                 st.error(f"대화를 불러오지 못했습니다: {e}")
 
+_AVATARS = {"user": "🙂", "assistant": "☁️"}
+
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
+    with st.chat_message(msg["role"], avatar=_AVATARS.get(msg["role"])):
         st.write(msg["content"])
 
 question = st.chat_input("예: Lambda로 월 100만 건 요청, 200ms, 512MB면 요금이 얼마나 나와?")
 if question:
     st.session_state.messages.append({"role": "user", "content": question})
-    with st.chat_message("user"):
+    with st.chat_message("user", avatar=_AVATARS["user"]):
         st.write(question)
 
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar=_AVATARS["assistant"]):
         placeholder = st.empty()
         placeholder.markdown("_생각 중..._")
         answer = ""
