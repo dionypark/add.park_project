@@ -341,9 +341,17 @@ with st.sidebar:
 
 _AVATARS = {"user": "🙂", "assistant": "☁️"}
 
+
+def _md_safe(text: str) -> str:
+    """Streamlit 마크다운은 $...$ 사이를 LaTeX 수식으로 해석하는데, 비용 답변처럼 달러 금액이
+    여러 번 나오면 그 사이 텍스트의 공백/별표(**)가 깨져서 보인다(예: "7.6**, EBS등부수비용까지
+    합치면대략**8~10"). $를 이스케이프해서 그냥 문자 그대로 보여준다."""
+    return text.replace("$", "\\$")
+
+
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=_AVATARS.get(msg["role"])):
-        st.write(msg["content"])
+        st.write(_md_safe(msg["content"]))
 
 question = st.chat_input("무엇이 궁금하신가요?")
 if question:
@@ -382,13 +390,13 @@ if question:
                             needs_calculation = data.get("needs_calculation", False)
                         elif current_event == "token":
                             answer += data.get("text", "")
-                            placeholder.markdown(answer + "▌")
+                            placeholder.markdown(_md_safe(answer) + "▌")
                         elif current_event == "done":
                             st.session_state.thread_id = data.get("thread_id", st.session_state.thread_id)
                         elif current_event == "error":
                             answer += f"\n\n**오류:** {data.get('message')}"
 
-            placeholder.markdown(answer or "답변을 생성하지 못했습니다.")
+            placeholder.markdown(_md_safe(answer) if answer else "답변을 생성하지 못했습니다.")
             used = []
             if needs_search:
                 used.append("검색")
