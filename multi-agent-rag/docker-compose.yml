@@ -10,8 +10,9 @@ services:
       - .env
     volumes:
       - ./vectordb:/app/vectordb
-      - ./checkpoints.sqlite:/app/checkpoints.sqlite
-      - ./users.sqlite:/app/users.sqlite
+      # 파일 하나만 바인드 마운트하면 SQLite WAL 모드의 -wal/-shm 사이드카가 컨테이너 안에만
+      # 생겨서 재배포마다 최근 대화가 날아갔다(state/ 디렉터리째 마운트해서 해결).
+      - ./state:/app/state
     command: sh -c "python build_vectordb.py && uvicorn app:app --host 0.0.0.0 --port 8000"
 
   # Streamlit 채팅 UI - api 컨테이너를 HTTP로만 호출, 자기 데이터는 없음

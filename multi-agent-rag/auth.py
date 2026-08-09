@@ -14,7 +14,10 @@ from pathlib import Path
 
 import bcrypt
 
-DB_PATH = Path(__file__).parent / "users.sqlite"
+# graph.py의 STATE_DIR과 같은 이유(WAL 사이드카 파일이 디렉터리 마운트 없이는 재배포마다
+# 사라지는 문제)로 users.sqlite도 같은 state/ 디렉터리에 둔다.
+DB_PATH = Path(__file__).parent / "state" / "users.sqlite"
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 SESSION_TTL_SECONDS = 30 * 24 * 3600  # 30일
 
 

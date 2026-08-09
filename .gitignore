@@ -13,3 +13,4 @@ checkpoints.sqlite-wal
 users.sqlite
 users.sqlite-shm
 users.sqlite-wal
+state/

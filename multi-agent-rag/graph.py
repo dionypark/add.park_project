@@ -23,7 +23,14 @@ from typing_extensions import TypedDict
 import config
 from tools import calculate_cost, search_aws_docs
 
-CHECKPOINT_DB_PATH = os.path.join(config.BASE_DIR, "checkpoints.sqlite")
+# SQLite는 WAL 모드에서 -wal/-shm 사이드카 파일에 최근 쓰기 내용을 들고 있다가 나중에 본 파일로
+# 합친다. docker-compose에서 db 파일 하나만 개별로 바인드 마운트하면 이 사이드카 파일들은
+# 컨테이너 안에만 존재해서, 재배포(docker compose up --build)로 컨테이너가 새로 생길 때마다
+# 그 안의 최근 대화 내용이 통째로 날아간다("지난 대화"가 빈 대화로 보이던 버그의 원인). 그래서
+# db 파일들을 전용 디렉터리(state/)에 몰아넣고, 그 디렉터리 전체를 마운트하는 방식으로 바꿨다.
+STATE_DIR = os.path.join(config.BASE_DIR, "state")
+os.makedirs(STATE_DIR, exist_ok=True)
+CHECKPOINT_DB_PATH = os.path.join(STATE_DIR, "checkpoints.sqlite")
 
 
 class State(TypedDict):
