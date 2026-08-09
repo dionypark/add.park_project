@@ -56,10 +56,17 @@ st.markdown(
         display: inline-flex; align-items: center; gap: 8px; color: #5B7089;
     }
     .ganeum-loading .cloud { display: inline-block; font-size: 20px; animation: ganeum-float 1.1s ease-in-out infinite; }
+    /* 배경 구름이 위아래/양옆으로 아주 천천히 떠다니는 느낌 - 구름마다 duration/delay를 다르게 줘서
+       똑같이 움직이지 않고 제각각 흘러가는 것처럼 보이게 함 */
+    @keyframes ganeum-drift {
+        0%, 100% { transform: translate(0, 0); }
+        50% { transform: translate(22px, -16px); }
+    }
     .ganeum-cloud {
         position: fixed; pointer-events: none; z-index: 0;
         background: #ffffff; border-radius: 50%; opacity: 0.5;
         filter: blur(2px);
+        animation: ganeum-drift 16s ease-in-out infinite;
     }
 
     .ganeum-header {
@@ -77,13 +84,12 @@ st.markdown(
         position: relative; z-index: 1; line-height: 1.6; font-weight: 500;
     }
 
-    /* 로그인 후(채팅) 화면 - 사이드바 맨 아래에 고정으로 박아두는 로고(아이콘 위, "가늠" 아래) */
+    /* 로그인 후(채팅) 화면 - 사이드바 맨 아래에 고정으로 박아두는 로고(아이콘 위, "가늠" 아래).
+       흰 상자처럼 보이지 않게 배경/테두리 없이 사이드바 배경 위에 그대로 얹는다. */
     .ganeum-sidebar-logo {
         position: sticky; bottom: 0;
         display: flex; flex-direction: column; align-items: center; gap: 6px;
         margin-top: 32px; padding: 18px 0 14px;
-        border-top: 1px solid rgba(91, 112, 137, 0.15);
-        background: rgba(255, 255, 255, 0.75);
     }
     .ganeum-sidebar-logo img {
         width: 64px; height: auto;
@@ -134,9 +140,14 @@ st.markdown(
     }
     </style>
 
-    <div class="ganeum-cloud" style="width:140px; height:70px; top:60px; left:5%;"></div>
-    <div class="ganeum-cloud" style="width:100px; height:50px; top:180px; right:8%;"></div>
-    <div class="ganeum-cloud" style="width:80px; height:40px; top:340px; left:12%;"></div>
+    <div class="ganeum-cloud" style="width:140px; height:70px; top:60px; left:5%; animation-duration:17s; animation-delay:0s;"></div>
+    <div class="ganeum-cloud" style="width:100px; height:50px; top:180px; right:8%; animation-duration:14s; animation-delay:-3s;"></div>
+    <div class="ganeum-cloud" style="width:80px; height:40px; top:340px; left:12%; animation-duration:19s; animation-delay:-7s;"></div>
+    <div class="ganeum-cloud" style="width:60px; height:30px; top:20px; left:42%; animation-duration:12s; animation-delay:-1s;"></div>
+    <div class="ganeum-cloud" style="width:120px; height:60px; top:460px; right:14%; animation-duration:20s; animation-delay:-5s;"></div>
+    <div class="ganeum-cloud" style="width:70px; height:35px; top:260px; left:68%; animation-duration:15s; animation-delay:-9s;"></div>
+    <div class="ganeum-cloud" style="width:90px; height:45px; top:600px; left:22%; animation-duration:18s; animation-delay:-2s;"></div>
+    <div class="ganeum-cloud" style="width:55px; height:28px; top:520px; right:35%; animation-duration:13s; animation-delay:-6s;"></div>
     """,
     unsafe_allow_html=True,
 )
