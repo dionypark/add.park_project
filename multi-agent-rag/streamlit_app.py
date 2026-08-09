@@ -77,6 +77,16 @@ st.markdown(
         position: relative; z-index: 1; line-height: 1.6; font-weight: 500;
     }
 
+    /* 로그인 후(채팅) 화면에서 오른쪽 위에 작게 붙는 로고 - 큰 헤더/태그라인 대신 이것만 씀 */
+    .ganeum-header-mini {
+        display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+        margin: -8px 0 12px; position: relative; z-index: 1;
+    }
+    .ganeum-header-mini img { width: 30px; height: auto; }
+    .ganeum-header-mini span {
+        font-family: 'Jua', sans-serif; font-size: 17px; color: #3F5266;
+    }
+
     /* 채팅 말풍선 - 기본 Streamlit 스타일을 카드형으로 부드럽게 */
     div[data-testid="stChatMessage"] {
         background: rgba(255, 255, 255, 0.72);
@@ -124,19 +134,31 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-# 아이콘(그림)과 "가늠"(글자)을 가로로 나란히 배치 - 세로로 늘어지지 않게.
-st.markdown(
-    f'<div class="ganeum-header">'
-    f'<img src="data:image/png;base64,{_logo_icon_b64}" alt="가늠 로고"/>'
-    f'<span class="ganeum-name">가늠</span>'
-    f'</div>',
-    unsafe_allow_html=True,
-)
-st.markdown(
-    "<p class='ganeum-tagline'>AWS, 얼마나 필요한지 가늠해드립니다<br>"
-    "무엇을 써야 할지, 어떤 게 더 나을지 비교하고 — 예상 비용까지 함께 가늠해드려요</p>",
-    unsafe_allow_html=True,
-)
+def _render_full_header():
+    """로그인 전 화면에서만 쓰는 큰 헤더(아이콘+이름+태그라인)."""
+    st.markdown(
+        f'<div class="ganeum-header">'
+        f'<img src="data:image/png;base64,{_logo_icon_b64}" alt="가늠 로고"/>'
+        f'<span class="ganeum-name">가늠</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<p class='ganeum-tagline'>AWS, 얼마나 필요한지 가늠해드립니다<br>"
+        "무엇을 써야 할지, 어떤 게 더 나을지 비교하고 — 예상 비용까지 함께 가늠해드려요</p>",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_mini_header():
+    """로그인 후(채팅) 화면에서 쓰는, 오른쪽 위에 작게 붙는 로고."""
+    st.markdown(
+        f'<div class="ganeum-header-mini">'
+        f'<img src="data:image/png;base64,{_logo_icon_b64}" alt="가늠 로고"/>'
+        f'<span>가늠</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
 
 # CookieManager 생성자가 내부적으로 쿠키를 읽어오는 위젯 호출을 하기 때문에, st.cache_resource로
@@ -150,11 +172,7 @@ def _auth_headers() -> dict:
 
 
 def _login_or_signup_view():
-    st.markdown(
-        "<p style='text-align:center; color:#5B7089; position:relative; z-index:1;'>"
-        "로그인하면 어느 기기에서 접속하든 내 대화 목록이 그대로 이어져요.</p>",
-        unsafe_allow_html=True,
-    )
+    _render_full_header()
     tab_login, tab_signup = st.tabs(["로그인", "회원가입"])
 
     with tab_login:
@@ -229,6 +247,7 @@ if "token" not in st.session_state:
     _login_or_signup_view()
     st.stop()
 
+_render_mini_header()
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
